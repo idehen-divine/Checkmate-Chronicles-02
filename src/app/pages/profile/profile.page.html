@@ -1,0 +1,127 @@
+<ion-content [fullscreen]="true">
+	<div class="profile-container">
+		<!-- Sidebar Navigation Component (desktop only) -->
+		<app-side-bar (navigationClick)="onSidebarNavigation($event)"></app-side-bar>
+
+		<!-- Main Content -->
+		<div class="main-content">
+			<!-- Header -->
+			<div class="header">
+				<div class="back-button" (click)="goBack()">
+					<img src="assets/icons/back-arrow.svg" alt="Back" />
+				</div>
+				<div class="menu-button" (click)="openMenu()">
+					<img src="assets/icons/menu-burger.svg" alt="Menu" />
+				</div>
+			</div>
+
+			<!-- Profile Section -->
+			<div class="profile-section">
+				<div class="profile-info">
+					<div class="profile-avatar">
+						<img src="assets/images/profile-avatar-large.png" alt="Profile Avatar" />
+					</div>
+					<div class="profile-details">
+						<h1 class="profile-name">{{ profileName }}</h1>
+						<p class="profile-username">{{ profileUsername }}</p>
+						<p class="profile-rank">{{ profileRank }}</p>
+					</div>
+				</div>
+
+				<!-- Action Buttons -->
+				<div class="action-buttons">
+					<ion-button shape="round" class="edit-profile-btn" (click)="editProfile()">
+						Edit Profile
+					</ion-button>
+					<ion-button shape="round" class="public-profile-btn" (click)="viewPublicProfile()">
+						Public Profile
+					</ion-button>
+				</div>
+			</div>
+
+			<!-- Stats Section -->
+			<div class="stats-section">
+				<div class="stats-info">
+					<div class="stats-text">
+						<p class="stats-label">Stats</p>
+						<p class="stats-main">{{ statsWins }} | Losses: {{ statsLosses }}</p>
+						<p class="stats-details">NFTs: {{ statsNFTs }} | Streak: {{ statsStreak }} | Games: {{
+							statsGames }}</p>
+					</div>
+					<div class="stats-image">
+						<img src="assets/images/chess-trophy-stats.png" alt="Chess Trophy" />
+					</div>
+				</div>
+			</div>
+
+			<!-- NFT Vault Section -->
+			<div class="nft-vault-section">
+				<h2 class="section-title">NFT Vault</h2>
+				<div class="nft-scroll-container" #nftScrollContainer>
+					<div class="nft-card" *ngFor="let nft of nftCollection">
+						<div class="nft-card-inner">
+							<div class="nft-image" [style.background-image]="'url(' + nft.image + ')'">
+							</div>
+							<div class="nft-info">
+								<div class="nft-header">
+									<div class="nft-left">
+										<div class="nft-icon">
+											<!-- Small Algorand icon -->
+											<svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+												xmlns="http://www.w3.org/2000/svg">
+												<path d="M12 2L22 20H18L15 14H9L12 8L6 20H2L12 2Z" fill="white" />
+											</svg>
+										</div>
+										<div class="nft-names">
+											<span class="nft-name">{{ nft.name }}</span>
+											<span class="nft-symbol">{{ nft.symbol }}</span>
+										</div>
+									</div>
+									<div class="nft-price-info">
+										<span class="nft-price">{{ nft.price }}</span>
+										<span class="nft-change" [class.positive]="nft.isPositive"
+											[class.negative]="!nft.isPositive">
+											{{ nft.priceChange }}
+										</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Match History Section -->
+			<div class="match-history-section">
+				<h2 class="section-title">Match History</h2>
+				<div class="match-list">
+					<div class="match-item" *ngFor="let match of matchHistory">
+						<div class="match-icon" [class]="match.result.toLowerCase()">
+							<img src="assets/icons/chess-match.svg" alt="Chess" />
+						</div>
+						<div class="match-details">
+							<div class="match-title-row">
+								<span class="match-title" [class]="match.result.toLowerCase()">Match vs. </span>
+								<span class="opponent-name" (click)="viewOpponentProfile(match.opponentId)">{{
+									match.opponentName
+									}}</span>
+								<img *ngIf="match.result.toLowerCase() === 'won'" src="assets/icons/trophy.svg"
+									alt="Trophy" class="trophy-icon" />
+							</div>
+							<div class="match-info">
+								<span class="match-rating" [class]="match.result.toLowerCase()">{{ match.eloChange
+									}}</span>
+								<span class="match-date">{{ match.date }}</span>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Bottom Navigation Component -->
+		<app-bottom-nav (navigationClick)="onBottomNavigation($event)"
+			(submenuClick)="onBottomSubmenuNavigation($event)">
+		</app-bottom-nav>
+	</div>
+</ion-content>

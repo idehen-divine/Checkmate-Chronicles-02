@@ -1,0 +1,12 @@
+{
+  "name": "Blank Starter",
+  "baseref": "main",
+  "tarignore": [
+    "node_modules",
+    "yarn.lock",
+    "www"
+  ],
+  "scripts": {
+    "test": "yarn run lint && yarn run build -- --configuration=ci --browsers=ChromeHeadless"
+  }
+}

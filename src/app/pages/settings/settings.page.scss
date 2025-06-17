@@ -1,0 +1,366 @@
+// Settings Container Layout
+.settings-container {
+	display: flex;
+	flex-direction: column;
+	min-height: 100vh;
+	background: var(--app-background);
+
+	@media (min-width: 1024px) {
+		flex-direction: row;
+	}
+}
+
+.settings-main {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+
+	@media (min-width: 1024px) {
+		margin-left: 280px; // Space for sidebar
+	}
+}
+
+.settings-content {
+	--background: var(--app-background);
+	--color: var(--app-white);
+	padding: 0 0 100px 0; // Space for bottom nav on mobile
+
+	@media (min-width: 1024px) {
+		padding: 40px;
+		max-width: 1200px;
+		margin: 0 auto;
+		width: 100%;
+
+		// Create a grid layout for better space utilization
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 60px;
+		align-items: start;
+	}
+
+	@media (min-width: 1400px) {
+		max-width: 1400px;
+		gap: 80px;
+	}
+}
+
+// Grid layout for desktop
+@media (min-width: 1024px) {
+	.account-settings-group {
+		grid-column: 1 / -1; // Full width for account settings
+	}
+
+	.preferences-group {
+		grid-column: 1;
+	}
+
+	.support-group {
+		grid-column: 2;
+	}
+}
+
+// Section Headers
+.section-header {
+	padding: 16px 16px 8px 16px;
+
+	h2 {
+		font-family: 'Space Grotesk', sans-serif;
+		font-weight: 700;
+		font-size: 18px;
+		color: var(--app-white);
+		margin: 0;
+	}
+
+	&.blockchain-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+
+		ion-icon {
+			font-size: 24px;
+			color: var(--app-white);
+			cursor: pointer;
+			transition: color 0.2s ease;
+
+			&:hover {
+				color: var(--app-primary);
+			}
+		}
+	}
+
+	@media (min-width: 1024px) {
+		padding: 0 0 20px 0;
+
+		h2 {
+			font-size: 24px;
+		}
+	}
+}
+
+// Profile Section
+.profile-section {
+	padding: 16px;
+
+	.profile-info {
+		display: flex;
+		align-items: center;
+		gap: 16px;
+
+		.profile-avatar {
+			width: 128px;
+			height: 128px;
+			border-radius: 64px;
+			object-fit: cover;
+		}
+
+		.profile-details {
+			h3 {
+				font-family: 'Space Grotesk', sans-serif;
+				font-weight: 700;
+				font-size: 22px;
+				color: var(--app-white);
+				margin: 0 0 4px 0;
+			}
+
+			.username {
+				font-family: 'Space Grotesk', sans-serif;
+				font-weight: 400;
+				font-size: 16px;
+				color: var(--app-mute-color);
+				margin: 0;
+			}
+		}
+	}
+
+	@media (min-width: 1024px) {
+		padding: 0 0 40px 0;
+
+		.profile-info {
+			justify-content: center;
+			align-items: center;
+			text-align: center;
+			gap: 24px;
+
+			.profile-avatar {
+				width: 200px;
+				height: 200px;
+				border-radius: 100px;
+			}
+
+			.profile-details {
+				h3 {
+					font-size: 32px;
+				}
+
+				.username {
+					font-size: 20px;
+				}
+			}
+		}
+	}
+}
+
+// Wallet Section
+.wallet-section {
+	padding: 0 16px;
+
+	.wallet-address {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		height: 56px;
+
+		span {
+			font-family: 'Space Grotesk', sans-serif;
+			font-weight: 400;
+			font-size: 16px;
+			color: var(--app-white);
+		}
+
+		.disconnect-btn {
+			--background: var(--app-background-light-shade);
+			--color: var(--app-white);
+			--border-radius: 16px;
+			height: 32px;
+			font-family: 'Space Grotesk', sans-serif;
+			font-weight: 500;
+			font-size: 14px;
+			text-transform: none;
+			margin: 0;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		padding: 0 0 40px 0;
+
+		.wallet-address {
+			height: 72px;
+
+			span {
+				font-size: 20px;
+			}
+
+			.disconnect-btn {
+				height: 40px;
+				font-size: 16px;
+			}
+		}
+	}
+}
+
+// Preferences and Notifications Sections
+.preferences-section,
+.notifications-section {
+	.preference-item {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 0 16px;
+		height: 56px;
+
+		span {
+			font-family: 'Space Grotesk', sans-serif;
+			font-weight: 400;
+			font-size: 16px;
+			color: var(--app-white);
+		}
+
+		.custom-toggle {
+			--background: var(--app-background-light-shade);
+			--background-checked: var(--app-background-light-shade);
+			--handle-background: var(--app-white);
+			--handle-background-checked: var(--app-white);
+			--handle-box-shadow: 0px 3px 8px rgba(0, 0, 0, 0.15);
+			width: 51px;
+			height: 31px;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		margin-bottom: 40px;
+
+		.preference-item {
+			padding: 0;
+			height: 72px;
+
+			span {
+				font-size: 20px;
+			}
+
+			.custom-toggle {
+				width: 60px;
+				height: 36px;
+			}
+		}
+	}
+}
+
+// Support Section
+.support-section {
+	padding: 0 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+
+	ion-button.support-btn {
+		--background: var(--app-background-light-shade);
+		--color: var(--app-white);
+		--border-radius: 20px;
+		height: 48px;
+		font-family: 'Space Grotesk', sans-serif;
+		font-weight: 700;
+		font-size: 16px;
+		line-height: 24px;
+		text-transform: none;
+		margin: 0;
+		transition: all 0.2s ease;
+
+		&:hover {
+			--background: var(--app-background-light-shade-alt);
+			border-radius: var(--border-radius);
+			transform: translateY(-2px);
+			box-shadow: 0 8px 20px rgba(46, 36, 71, 0.4);
+		}
+	}
+
+	@media (min-width: 1024px) {
+		padding: 0;
+		gap: 16px;
+
+		ion-button.support-btn {
+			height: 64px;
+			font-size: 18px;
+
+			&:hover {
+				transform: translateY(-2px);
+				border-radius: var(--border-radius);
+				box-shadow: 0 8px 20px rgba(46, 36, 71, 0.4);
+			}
+		}
+	}
+}
+
+// Danger Section
+.danger-section {
+	padding: 0 16px;
+	margin-bottom: 20px;
+
+	ion-button.delete-btn {
+		--border-radius: 20px;
+		height: 48px;
+		font-family: 'Space Grotesk', sans-serif;
+		font-weight: 700;
+		font-size: 16px;
+		line-height: 24px;
+		text-transform: none;
+		margin: 0;
+		transition: all 0.2s ease;
+
+		&:hover {
+			transform: translateY(-2px);
+			border-radius: var(--border-radius);
+			box-shadow: 0 8px 20px rgba(220, 53, 69, 0.4);
+		}
+	}
+
+	@media (min-width: 1024px) {
+		padding: 0;
+		margin-bottom: 0;
+
+		ion-button.delete-btn {
+			height: 64px;
+			font-size: 18px;
+
+			&:hover {
+				transform: translateY(-2px);
+				border-radius: var(--border-radius);
+				box-shadow: 0 8px 20px rgba(220, 53, 69, 0.4);
+			}
+		}
+	}
+}
+
+// Tablet responsive design
+@media (min-width: 768px) and (max-width: 1023px) {
+	.settings-content {
+		max-width: 600px;
+		margin: 0 auto;
+		padding: 20px 20px 100px 20px;
+	}
+
+	.profile-section {
+		.profile-info {
+			.profile-avatar {
+				width: 140px;
+				height: 140px;
+				border-radius: 70px;
+			}
+
+			.profile-details {
+				h3 {
+					font-size: 24px;
+				}
+			}
+		}
+	}
+}

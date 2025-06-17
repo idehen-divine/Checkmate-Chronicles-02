@@ -1,0 +1,442 @@
+ion-content {
+    --background: var(--app-background);
+    --color: var(--app-white);
+    --overflow: hidden;
+}
+
+.coming-soon-container {
+    height: 100vh;
+    background-color: var(--app-background);
+    font-family: 'Space Grotesk', sans-serif;
+    padding: 16px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+
+    // Desktop optimized layout
+    @media (min-width: 1024px) {
+        padding: 40px;
+        justify-content: center;
+        max-width: 1200px;
+        margin: 0 auto;
+        gap: 24px;
+    }
+}
+
+// Header Section (consistent with dashboard)
+.header-section {
+    padding: 16px 0 0;
+    flex-shrink: 0;
+
+    @media (min-width: 1024px) {
+        padding: 0;
+        margin-bottom: 20px;
+    }
+
+    .page-title {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 700;
+        font-size: 18px;
+        line-height: 23px;
+        color: var(--app-white);
+        margin: 0;
+        text-align: center;
+
+        @media (min-width: 1024px) {
+            font-size: 24px;
+            line-height: 30px;
+        }
+    }
+}
+
+// Central Chess Icon
+.illustration-container {
+    flex-shrink: 0;
+    margin: 20px 0;
+
+    @media (min-width: 1024px) {
+        margin: 0;
+    }
+
+    .chess-icon {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background-color: var(--app-background-light-shade);
+        backdrop-filter: blur(10px);
+
+        @media (min-width: 768px) {
+            width: 140px;
+            height: 140px;
+        }
+
+        @media (min-width: 1024px) {
+            width: 160px;
+            height: 160px;
+        }
+
+        .trophy-icon {
+            font-size: 48px;
+            color: var(--app-primary);
+            z-index: 2;
+            position: relative;
+
+            @media (min-width: 768px) {
+                font-size: 56px;
+            }
+
+            @media (min-width: 1024px) {
+                font-size: 64px;
+            }
+        }
+
+        // Glow ring effect
+        .glow-ring {
+            position: absolute;
+            top: -4px;
+            left: -4px;
+            right: -4px;
+            bottom: -4px;
+            border: 2px solid var(--app-primary);
+            border-radius: 50%;
+            opacity: 0.6;
+            animation: pulse 2s ease-in-out infinite alternate;
+        }
+
+        // Rotating border
+        .rotating-border {
+            position: absolute;
+            top: -8px;
+            left: -8px;
+            right: -8px;
+            bottom: -8px;
+            border: 1px solid transparent;
+            border-top: 1px solid var(--app-mute-color);
+            border-radius: 50%;
+            animation: rotate 4s linear infinite;
+            opacity: 0.7;
+        }
+    }
+}
+
+// Title Section
+.title-section {
+    flex-shrink: 0;
+    margin: 16px 0;
+
+    @media (min-width: 1024px) {
+        margin: 0;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .main-title {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 700;
+        font-size: 32px;
+        line-height: 40px;
+        color: var(--app-white);
+        margin: 0 0 12px 0;
+        letter-spacing: -0.5px;
+
+        @media (min-width: 768px) {
+            font-size: 36px;
+            line-height: 45px;
+        }
+
+        @media (min-width: 1024px) {
+            font-size: 42px;
+            line-height: 52px;
+            margin-bottom: 16px;
+        }
+    }
+
+    .subtitle {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 400;
+        font-size: 16px;
+        line-height: 24px;
+        color: var(--app-mute-color);
+        margin: 0 0 8px 0;
+
+        @media (min-width: 1024px) {
+            font-size: 18px;
+            line-height: 27px;
+            margin-bottom: 12px;
+        }
+    }
+
+    .chess-quote {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 400;
+        font-size: 14px;
+        line-height: 21px;
+        color: var(--app-mute-color);
+        font-style: italic;
+        margin: 0;
+        opacity: 0.8;
+
+        @media (min-width: 1024px) {
+            font-size: 16px;
+            line-height: 24px;
+        }
+    }
+}
+
+// Progress Section
+.progress-section {
+    flex-shrink: 0;
+    margin: 20px 0;
+
+    @media (min-width: 1024px) {
+        margin: 0;
+    }
+
+    .progress-circle {
+        position: relative;
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 12px;
+
+        @media (min-width: 1024px) {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 16px;
+        }
+
+        .circular-progress {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+
+            .progress-bg {
+                fill: none;
+                stroke: var(--app-background-light-shade);
+                stroke-width: 3;
+
+                @media (min-width: 1024px) {
+                    stroke-width: 4;
+                }
+            }
+
+            .progress-bar {
+                fill: none;
+                stroke: var(--app-primary);
+                stroke-width: 3;
+                stroke-dasharray: 283;
+                stroke-dashoffset: 99;
+                animation: progressGrow 3s ease-in-out infinite alternate;
+                filter: drop-shadow(0 0 4px rgba(115, 64, 235, 0.5));
+
+                @media (min-width: 1024px) {
+                    stroke-width: 4;
+                    stroke-dasharray: 377;
+                    stroke-dashoffset: 132;
+                }
+            }
+        }
+
+        .progress-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+
+            .progress-text {
+                font-family: 'Space Grotesk', sans-serif;
+                font-weight: 600;
+                font-size: 16px;
+                color: var(--app-primary);
+
+                @media (min-width: 1024px) {
+                    font-size: 18px;
+                }
+            }
+        }
+    }
+
+    .progress-label {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 400;
+        font-size: 14px;
+        color: var(--app-mute-color);
+        margin: 0;
+
+        @media (min-width: 1024px) {
+            font-size: 16px;
+        }
+    }
+}
+
+// Action Section
+.action-section {
+    flex-shrink: 0;
+    margin: 20px 0;
+
+    @media (min-width: 1024px) {
+        margin: 0;
+        max-width: 400px;
+        margin: 0 auto;
+    }
+
+    .back-btn {
+        --background: transparent;
+        --color: var(--app-primary);
+        --border-color: var(--app-primary);
+        --border-width: 1px;
+        --border-radius: 24px;
+        height: 48px;
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 600;
+        font-size: 16px;
+        text-transform: none;
+        margin: 0;
+        transition: all 0.2s ease;
+
+        @media (min-width: 1024px) {
+            height: 56px;
+            font-size: 18px;
+            --border-radius: 28px;
+        }
+
+        ion-icon {
+            margin-right: 8px;
+        }
+
+        &:hover {
+            --background: var(--app-primary);
+            --color: var(--app-white);
+            transform: translateY(-1px);
+            border-radius: var(--border-radius);
+
+            @media (min-width: 1024px) {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 24px rgba(115, 64, 235, 0.3);
+            }
+        }
+    }
+}
+
+// Easter Egg Zone
+.easter-egg-zone {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    pointer-events: none;
+
+    .easter-message {
+        position: absolute;
+        top: 25%;
+        left: 50%;
+        transform: translateX(-50%) translateY(-20px);
+        background: rgba(46, 36, 71, 0.95);
+        color: var(--app-white);
+        padding: 16px 20px;
+        border-radius: 12px;
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 14px;
+        font-style: italic;
+        opacity: 0;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--app-primary);
+        max-width: 280px;
+        text-align: center;
+        box-shadow: 0 8px 32px rgba(115, 64, 235, 0.2);
+        pointer-events: none;
+
+        @media (min-width: 1024px) {
+            top: 30%;
+            font-size: 16px;
+            padding: 20px 24px;
+            max-width: 320px;
+            border-radius: 16px;
+        }
+
+        p {
+            margin: 0;
+        }
+
+        &.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    }
+}
+
+// Animations
+@keyframes pulse {
+    0% {
+        opacity: 0.6;
+        transform: scale(1);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+}
+
+@keyframes rotate {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes progressGrow {
+    0% {
+        stroke-dashoffset: 200;
+    }
+
+    100% {
+        stroke-dashoffset: 99;
+    }
+}
+
+// Remove default ion-content padding and scrolling
+ion-content::part(scroll) {
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+
+// Prevent body scroll
+body {
+    overflow: hidden;
+}
+
+// Accessibility
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+// High contrast support
+@media (prefers-contrast: high) {
+    .illustration-container .chess-icon {
+        border: 2px solid var(--app-white);
+    }
+
+    .progress-section .progress-bar {
+        stroke-width: 4;
+
+        @media (min-width: 1024px) {
+            stroke-width: 5;
+        }
+    }
+}

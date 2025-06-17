@@ -1,0 +1,143 @@
+/*
+ * App Global CSS
+ * ----------------------------------------------------------------------------
+ * Put style rules here that you want to apply globally. These styles are for
+ * the entire app and not just one component. Additionally, this file can be
+ * used as an entry point to import other CSS/Sass files to be included in the
+ * output CSS.
+ * For more information on global stylesheets, visit the documentation:
+ * https://ionicframework.com/docs/layout/global-stylesheets
+ */
+
+/* Core CSS required for Ionic components to work properly */
+@import "@ionic/angular/css/core.css";
+
+/* Basic CSS for apps built with Ionic */
+@import "@ionic/angular/css/normalize.css";
+@import "@ionic/angular/css/structure.css";
+@import "@ionic/angular/css/typography.css";
+@import "@ionic/angular/css/display.css";
+
+/* Optional CSS utils that can be commented out */
+@import "@ionic/angular/css/padding.css";
+@import "@ionic/angular/css/float-elements.css";
+@import "@ionic/angular/css/text-alignment.css";
+@import "@ionic/angular/css/text-transformation.css";
+@import "@ionic/angular/css/flex-utils.css";
+
+/**
+ * Ionic Dark Mode
+ * -----------------------------------------------------
+ * For more info, please see:
+ * https://ionicframework.com/docs/theming/dark-mode
+ */
+
+/* @import "@ionic/angular/css/palettes/dark.always.css"; */
+/* @import "@ionic/angular/css/palettes/dark.class.css"; */
+@import '@ionic/angular/css/palettes/dark.system.css';
+
+/* Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap');
+
+:root {
+    // App Background Colors
+    --ion-background-color: #171221;
+    --ion-background-color-rgb: 23, 18, 33;
+
+    // Primary Colors (Purple)
+    --ion-color-primary: #7340EB;
+    --ion-color-primary-rgb: 115, 64, 235;
+    --ion-color-primary-contrast: #ffffff;
+    --ion-color-primary-contrast-rgb: 255, 255, 255;
+    --ion-color-primary-shade: #6538cf;
+    --ion-color-primary-tint: #8153ed;
+
+    // Secondary Colors
+    --ion-color-secondary: #C4B1EB;
+    --ion-color-secondary-rgb: 196, 177, 235;
+    --ion-color-secondary-contrast: #000000;
+    --ion-color-secondary-contrast-rgb: 0, 0, 0;
+    --ion-color-secondary-shade: #ac9ccf;
+    --ion-color-secondary-tint: #cab9ed;
+
+    // Custom App Colors from Figma Design
+    --app-background: #171221;
+    --app-background-light-shade: #2E2447;
+    --app-background-light-shade-alt: #211A33;
+    --app-mute-color: #A394C7;
+    --app-white: #FFFFFF;
+    --app-primary: #7340EB;
+
+    // Override default text colors for dark theme
+    --ion-text-color: #ffffff;
+    --ion-text-color-rgb: 255, 255, 255;
+}
+
+/* Apply font globally and prevent text selection */
+* {
+    font-family: 'Space Grotesk', sans-serif;
+    user-select: none;
+    /* Prevent text selection globally */
+    -webkit-user-select: none;
+    /* Safari */
+    -moz-user-select: none;
+    /* Firefox */
+    -ms-user-select: none;
+    /* IE/Edge */
+}
+
+/* Allow text selection for input fields and editable content */
+input,
+textarea,
+[contenteditable="true"] {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+}
+
+/* Improve scrolling performance */
+* {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent image dragging */
+img {
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+}
+
+body {
+    font-family: 'Space Grotesk', sans-serif;
+}
+
+/* Mobile bottom navigation spacing */
+@media (max-width: 1023px) {
+    ion-content {
+        --padding-bottom: 80px;
+        /* Space for fixed bottom navigation */
+    }
+
+    /* Ensure main content doesn't overlap with bottom nav */
+    ion-router-outlet {
+        padding-bottom: 80px;
+    }
+}
+
+/* Hide ion-item detail icons in popovers */
+ion-popover ion-item {
+    --detail-icon-opacity: 0 !important;
+    --detail-icon-color: transparent !important;
+}
+
+ion-popover ion-item .item-detail-icon,
+ion-popover ion-item::part(detail-icon),
+ion-popover .item-detail-icon {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+}

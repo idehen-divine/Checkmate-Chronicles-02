@@ -1,0 +1,236 @@
+// Bottom Navigation with Ionic Components
+ion-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+
+    @media (min-width: 1024px) {
+        display: none; // Hidden on desktop, replaced by sidebar
+    }
+}
+
+ion-toolbar {
+    --background: var(--app-background-light-shade-alt);
+    --border-color: var(--app-background-light-shade);
+    --border-width: 1px 0 0 0;
+    --border-style: solid;
+    --padding-start: 12px;
+    --padding-end: 12px;
+    --padding-top: 6px;
+    --padding-bottom: 6px;
+    --min-height: 60px;
+}
+
+.bottom-nav-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.nav-button {
+    --color: var(--app-mute-color);
+    --color-hover: var(--app-primary);
+    --color-focused: var(--app-primary);
+    --background: transparent;
+    --background-hover: transparent;
+    --background-focused: transparent;
+    --border-radius: 8px;
+    --padding-start: 8px;
+    --padding-end: 8px;
+    --padding-top: 8px;
+    --padding-bottom: 8px;
+
+    flex: 1;
+    height: auto;
+    min-height: 60px;
+
+    &.active {
+        --color: var(--app-white);
+
+        .nav-button-content {
+            ion-icon {
+                transform: scale(1.1);
+                filter: brightness(0) saturate(100%) invert(100%);
+            }
+        }
+    }
+
+    &:hover:not(.active) {
+        --color: var(--app-primary);
+
+        .nav-button-content {
+            ion-icon {
+                filter: brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(246deg) brightness(104%) contrast(97%);
+            }
+        }
+    }
+}
+
+.nav-button-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+
+    ion-icon {
+        width: 24px;
+        height: 24px;
+        transition: all 0.2s ease;
+        filter: brightness(0) saturate(100%) invert(69%) sepia(8%) saturate(1435%) hue-rotate(225deg) brightness(91%) contrast(87%);
+    }
+
+    ion-label {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 500;
+        font-size: 12px;
+        line-height: 18px;
+        white-space: nowrap;
+        color: inherit;
+    }
+}
+
+// Popover Content Styling for Ionic Components
+.nav-popover-content {
+    --background: var(--app-background-light-shade-alt);
+    --padding-start: 0;
+    --padding-end: 0;
+    --padding-top: 8px;
+    --padding-bottom: 8px;
+
+    // Remove scrollbar and vertical scrolling
+    overflow: hidden;
+    --overflow: hidden;
+
+    ion-list {
+        --background: transparent;
+        --ion-item-background: transparent;
+        padding: 0;
+        overflow: hidden; // Remove scrollbar from list
+
+        ion-item {
+            --background: transparent;
+            --background-hover: var(--app-background-light-shade);
+            --background-focused: var(--app-background-light-shade);
+            --color: var(--app-white);
+            --border-radius: 8px;
+            --padding-start: 16px;
+            --padding-end: 16px;
+            --inner-padding-start: 0;
+            --inner-padding-end: 0;
+            --border-width: 0; // Remove border lines between items
+            --inner-border-width: 0; // Remove inner border lines
+            --detail-icon-opacity: 0; // Hide the detail icon (caret)
+            --detail-icon-color: transparent; // Make detail icon transparent
+
+            margin: 4px 8px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: none; // Ensure no borders
+
+            // Hide the detail icon completely
+            .item-detail-icon {
+                display: none !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
+            }
+
+            // Hide any detail icons using part selector
+            &::part(detail-icon) {
+                display: none !important;
+                opacity: 0 !important;
+            }
+
+            &:hover {
+                transform: translateX(2px);
+                --background: var(--app-background-light-shade);
+
+                ion-icon {
+                    opacity: 1;
+                }
+
+                ion-label {
+                    color: var(--app-primary);
+                }
+            }
+
+            ion-icon {
+                width: 20px;
+                height: 20px;
+                opacity: 0.7;
+                transition: opacity 0.2s ease;
+                margin-right: 12px;
+            }
+
+            ion-label {
+                font-family: 'Space Grotesk', sans-serif;
+                font-size: 14px;
+                font-weight: 500;
+                color: var(--app-white);
+                white-space: nowrap;
+            }
+        }
+    }
+}
+
+// Global Popover Styling
+ion-popover {
+    --background: var(--app-background-light-shade-alt);
+    --box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    --border-radius: 16px;
+    --border-color: var(--app-background-light-shade);
+    --border-width: 1px;
+    --border-style: solid;
+    --min-width: 120px;
+    --max-height: none;
+    --overflow: hidden;
+}
+
+// Additional global styles to ensure no scrollbars or borders
+:host {
+    ion-popover {
+        --max-height: fit-content;
+
+        ion-content {
+            --overflow: hidden;
+            --scroll-y: false;
+            overflow: hidden !important;
+            overflow-y: hidden !important;
+
+            &::-webkit-scrollbar {
+                display: none !important;
+            }
+
+            &::-webkit-scrollbar-track {
+                display: none !important;
+            }
+
+            &::-webkit-scrollbar-thumb {
+                display: none !important;
+            }
+
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        ion-list {
+            overflow: hidden !important;
+            overflow-y: hidden !important;
+
+            ion-item {
+                --border-color: transparent !important;
+                --inner-border-width: 0 !important;
+                border: none !important;
+
+                &:not(:last-child) {
+                    border-bottom: none !important;
+                }
+            }
+        }
+    }
+}

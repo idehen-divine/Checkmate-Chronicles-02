@@ -1,0 +1,41 @@
+<ion-content [fullscreen]="true">
+	<div class="auth-container">
+		<div class="auth-wrapper">
+			<div class="hero-section">
+				<div class="chess-background"></div>
+			</div>
+
+			<div class="content-wrapper">
+				<div class="content-section">
+					<div class="title-section">
+						<h1>Checkmate Chronicles</h1>
+					</div>
+
+					<div class="subtitle-section">
+						<p>Play chess, earn crypto, and own your pieces in the metaverse.</p>
+					</div>
+
+					<div class="buttons-section">
+						<ion-button class="play-now-btn" expand="block" shape="round" (click)="playAsGuest()">
+							Play Now
+						</ion-button>
+
+						<ion-button class="google-btn" expand="block" shape="round" fill="outline"
+							(click)="signInWithGoogle()">
+							Sign In with Google
+						</ion-button>
+
+						<ion-button class="apple-btn" expand="block" shape="round" fill="outline"
+							(click)="navigate('coming-soon')">
+							Sign In with Apple
+						</ion-button>
+					</div>
+				</div>
+
+				<div class="footer-section">
+					<p class="terms-text">By connecting, you agree to our Terms of Service and Privacy Policy.</p>
+				</div>
+			</div>
+		</div>
+	</div>
+</ion-content>

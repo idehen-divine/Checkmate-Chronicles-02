@@ -1,0 +1,357 @@
+// Import Google Fonts
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap');
+
+// Color variables from Figma
+:root {
+    --primary-color: #7340EB;
+    --background-color: #171221;
+    --background-light-shade: #2E2447;
+    --mute-color: #A394C7;
+    --white: #FFFFFF;
+}
+
+ion-content {
+    --background: var(--app-background);
+    --color: var(--app-white);
+}
+
+.auth-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background-color: var(--app-background);
+    font-family: 'Space Grotesk', sans-serif;
+    position: relative;
+}
+
+.auth-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+
+    // Split layout for large screens
+    @media (min-width: 1024px) {
+        flex-direction: row;
+        height: 100vh;
+        overflow: hidden;
+    }
+}
+
+.hero-section {
+    flex: 0 0 auto;
+    position: relative;
+    height: 400px;
+    min-height: 400px;
+
+    // Responsive hero section heights
+    @media (min-width: 768px) {
+        height: 500px;
+        min-height: 500px;
+    }
+
+    @media (min-width: 1024px) {
+        flex: 1;
+        height: 100vh;
+        min-height: 100vh;
+        width: 50%;
+    }
+}
+
+.chess-background {
+    width: 100%;
+    height: 100%;
+    background-image: url('/assets/images/auth-hero.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.content-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+
+    @media (min-width: 1024px) {
+        flex: 1;
+        width: 50%;
+        height: 100vh;
+        overflow-y: auto;
+        justify-content: center;
+        padding: 40px;
+    }
+
+    @media (min-width: 1200px) {
+        padding: 60px;
+    }
+}
+
+.content-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-width: 100%;
+    margin: 0 auto;
+
+    // Center content on larger screens
+    @media (min-width: 768px) {
+        max-width: 600px;
+        padding: 0 20px;
+    }
+
+    @media (min-width: 1024px) {
+        max-width: none;
+        padding: 0;
+        flex: 1;
+        justify-content: center;
+        text-align: center;
+    }
+}
+
+.title-section {
+    text-align: center;
+    padding: 20px 16px 12px;
+
+    @media (min-width: 1024px) {
+        text-align: center;
+        padding: 0 0 20px 0;
+    }
+
+    h1 {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 700;
+        font-size: 28px;
+        line-height: 35px;
+        color: var(--app-white);
+        margin: 0;
+        white-space: nowrap;
+
+        // Responsive typography - ensuring single line
+        @media (min-width: 768px) {
+            font-size: 36px;
+            line-height: 44px;
+        }
+
+        @media (min-width: 1024px) {
+            font-size: 32px;
+            line-height: 40px;
+        }
+
+        @media (min-width: 1200px) {
+            font-size: 36px;
+            line-height: 44px;
+        }
+
+        @media (min-width: 1400px) {
+            font-size: 40px;
+            line-height: 48px;
+        }
+    }
+}
+
+.subtitle-section {
+    text-align: center;
+    padding: 4px 16px 12px;
+
+    @media (min-width: 1024px) {
+        text-align: center;
+        padding: 0 0 30px 0;
+    }
+
+    p {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 400;
+        font-size: 16px;
+        line-height: 24px;
+        color: var(--app-white);
+        margin: 0;
+
+        // Responsive typography
+        @media (min-width: 768px) {
+            font-size: 18px;
+            line-height: 28px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        @media (min-width: 1024px) {
+            font-size: 18px;
+            line-height: 28px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        @media (min-width: 1200px) {
+            font-size: 20px;
+            line-height: 30px;
+            max-width: 450px;
+        }
+    }
+}
+
+.buttons-section {
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 480px;
+    margin: 0 auto;
+    width: 100%;
+
+    // Responsive button layout
+    @media (min-width: 768px) {
+        padding: 20px 16px;
+        gap: 16px;
+        max-width: 500px;
+    }
+
+    @media (min-width: 1024px) {
+        padding: 0 0 30px 0;
+        gap: 18px;
+        max-width: 400px;
+        margin: 0 auto;
+    }
+
+    @media (min-width: 1200px) {
+        gap: 20px;
+        max-width: 420px;
+    }
+
+    ion-button {
+        height: 48px;
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 700;
+        font-size: 16px;
+        line-height: 24px;
+        text-transform: none;
+        margin: 0;
+
+        // Responsive button sizing
+        @media (min-width: 768px) {
+            height: 56px;
+            font-size: 18px;
+            line-height: 28px;
+        }
+
+        @media (min-width: 1024px) {
+            height: 56px;
+            font-size: 17px;
+            line-height: 26px;
+        }
+
+        @media (min-width: 1200px) {
+            height: 60px;
+            font-size: 18px;
+            line-height: 28px;
+        }
+
+        &.play-now-btn {
+            --background: var(--app-primary);
+            --color: var(--app-white);
+            --border-radius: 24px;
+
+            @media (min-width: 768px) {
+                --border-radius: 28px;
+            }
+
+            @media (min-width: 1024px) {
+                --border-radius: 28px;
+            }
+
+            @media (min-width: 1200px) {
+                --border-radius: 30px;
+            }
+        }
+
+        &.google-btn,
+        &.apple-btn {
+            --background: var(--app-background-light-shade);
+            --color: var(--app-white);
+            --border-radius: 24px;
+            --border-color: transparent;
+
+            @media (min-width: 768px) {
+                --border-radius: 28px;
+            }
+
+            @media (min-width: 1024px) {
+                --border-radius: 28px;
+            }
+
+            @media (min-width: 1200px) {
+                --border-radius: 30px;
+            }
+        }
+    }
+}
+
+.footer-section {
+    flex: 0 0 auto;
+    padding: 4px 16px 20px;
+    text-align: center;
+
+    // Responsive footer padding
+    @media (min-width: 768px) {
+        padding: 8px 16px 30px;
+    }
+
+    @media (min-width: 1024px) {
+        padding: 0;
+        text-align: center;
+    }
+
+    .terms-text {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 400;
+        font-size: 14px;
+        line-height: 21px;
+        color: var(--app-mute-color);
+        margin: 0;
+        max-width: 400px;
+        margin: 0 auto;
+
+        // Responsive typography
+        @media (min-width: 768px) {
+            font-size: 15px;
+            line-height: 23px;
+            max-width: 500px;
+        }
+
+        @media (min-width: 1024px) {
+            font-size: 14px;
+            line-height: 22px;
+            max-width: 380px;
+            margin: 0 auto;
+        }
+
+        @media (min-width: 1200px) {
+            font-size: 15px;
+            line-height: 23px;
+            max-width: 400px;
+        }
+    }
+}
+
+// Remove default ion-content padding
+ion-content::part(scroll) {
+    padding: 0 !important;
+}
+
+ion-toolbar {
+    --background: var(--ion-color-light);
+    --border-color: transparent;
+}
+
+ion-title {
+    color: var(--ion-color-dark);
+    font-weight: 600;
+}
+
+// Desktop-specific layout adjustments
+@media (min-width: 1400px) {
+    .auth-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        box-shadow: 0 0 60px rgba(0, 0, 0, 0.4);
+    }
+}

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Ionic App</title>
+
+  <base href="/" />
+
+  <meta name="color-scheme" content="light dark" />
+  <meta name="viewport"
+    content="viewport-fit=cover, width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="msapplication-tap-highlight" content="no" />
+
+  <link rel="icon" type="image/png" href="assets/icon/favicon.png" />
+
+  <!-- add to homescreen for ios -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+
+  <!-- Bolt.new Badge Styles -->
+  <style>
+    #bolt-badge {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 999999;
+      transition: all 0.3s ease;
+      pointer-events: auto;
+      animation: subtle-pulse 4s ease-in-out infinite;
+    }
+
+    #bolt-badge a {
+      display: block;
+      text-decoration: none;
+      transition: transform 0.2s ease;
+    }
+
+    #bolt-badge a:hover {
+      transform: scale(1.1);
+    }
+
+    #bolt-badge img {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      transition: box-shadow 0.2s ease;
+      object-fit: cover;
+    }
+
+    #bolt-badge img:hover {
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      #bolt-badge {
+        bottom: 110px;
+        /* Above mobile bottom navigation */
+        right: 16px;
+      }
+
+      #bolt-badge img {
+        width: 50px;
+        height: 50px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      #bolt-badge {
+        bottom: 100px;
+        right: 12px;
+      }
+
+      #bolt-badge img {
+        width: 44px;
+        height: 44px;
+      }
+    }
+
+    @media (max-width: 360px) {
+      #bolt-badge {
+        bottom: 95px;
+        right: 10px;
+      }
+
+      #bolt-badge img {
+        width: 40px;
+        height: 40px;
+      }
+    }
+
+    /* Large screens */
+    @media (min-width: 1024px) {
+      #bolt-badge {
+        bottom: 30px;
+        right: 30px;
+      }
+
+      #bolt-badge img {
+        width: 70px;
+        height: 70px;
+      }
+    }
+
+    @media (min-width: 1440px) {
+      #bolt-badge {
+        bottom: 40px;
+        right: 40px;
+      }
+
+      #bolt-badge img {
+        width: 80px;
+        height: 80px;
+      }
+    }
+
+    /* Subtle pulse animation */
+    @keyframes subtle-pulse {
+
+      0%,
+      100% {
+        opacity: 0.9;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 1;
+        transform: scale(1.03);
+      }
+    }
+
+    /* Ensure badge doesn't interfere with content */
+    @media (max-width: 320px) {
+      #bolt-badge {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <app-root></app-root>
+
+  <!-- Bolt.new Badge - Global badge visible on all pages -->
+  <div id="bolt-badge">
+    <a href="https://bolt.new/" target="_blank" rel="noopener noreferrer" title="Powered by Bolt.new">
+      <img src="assets/images/bolt.new.png" alt="Powered by Bolt.new" />
+    </a>
+  </div>
+</body>
+
+</html>

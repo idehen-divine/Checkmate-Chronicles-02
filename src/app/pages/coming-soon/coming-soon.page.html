@@ -1,0 +1,54 @@
+<ion-content [fullscreen]="true" [scrollY]="false">
+	<div class="coming-soon-container">
+		<!-- Header Section -->
+		<div class="header-section">
+			<h1 class="page-title">Feature Preview</h1>
+		</div>
+
+		<!-- Central Chess Icon -->
+		<div class="illustration-container">
+			<div class="chess-icon">
+				<ion-icon name="trophy-outline" class="trophy-icon"></ion-icon>
+				<div class="glow-ring"></div>
+				<div class="rotating-border"></div>
+			</div>
+		</div>
+
+		<!-- Title Section -->
+		<div class="title-section">
+			<h2 class="main-title">Coming Soon</h2>
+			<p class="subtitle">This feature is still in check. Stay tuned!</p>
+			<p class="chess-quote">Move in silence… great things are in the works.</p>
+		</div>
+
+		<!-- Progress Section -->
+		<div class="progress-section">
+			<div class="progress-circle">
+				<svg viewBox="0 0 100 100" class="circular-progress">
+					<circle cx="50" cy="50" r="45" class="progress-bg"></circle>
+					<circle cx="50" cy="50" r="45" class="progress-bar"></circle>
+				</svg>
+				<div class="progress-content">
+					<span class="progress-text">65%</span>
+				</div>
+			</div>
+			<p class="progress-label">Development Progress</p>
+		</div>
+
+		<!-- Action Button -->
+		<div class="action-section">
+			<ion-button class="back-btn" expand="block" shape="round" fill="outline" (click)="onGoBack()">
+				<ion-icon name="arrow-back-outline" slot="start"></ion-icon>
+				Go Back
+			</ion-button>
+		</div>
+
+		<!-- Easter Egg Zone -->
+		<div class="easter-egg-zone" (click)="showEasterEgg()" (touchstart)="onLongPressStart()"
+			(touchend)="onLongPressEnd()">
+			<div class="easter-message" [class.show]="showEasterMessage">
+				<p>Patience is the grandmaster's greatest weapon.</p>
+			</div>
+		</div>
+	</div>
+</ion-content>

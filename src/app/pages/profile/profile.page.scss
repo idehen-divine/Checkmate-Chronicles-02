@@ -1,0 +1,756 @@
+// Profile Page Styles
+ion-content {
+    --background: var(--app-background);
+    --color: var(--app-white);
+}
+
+.profile-container {
+    display: flex;
+    min-height: 100vh;
+    background-color: var(--app-background);
+    font-family: 'Space Grotesk', sans-serif;
+    position: relative;
+}
+
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    max-width: 100%;
+
+    @media (min-width: 1024px) {
+        padding-bottom: 0;
+        max-width: calc(100vw - 280px); // Account for fixed sidebar width
+        margin-left: 280px;
+        padding: 40px;
+    }
+}
+
+// Header Section
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background-color: var(--app-background);
+
+    .back-button,
+    .menu-button {
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+
+        &:hover {
+            transform: scale(1.1);
+        }
+
+        img {
+            width: 24px;
+            height: 24px;
+        }
+    }
+
+    @media (min-width: 1024px) {
+        padding: 24px 0;
+    }
+}
+
+// Profile Section
+.profile-section {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+
+    .profile-info {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        text-align: center;
+
+        .profile-avatar {
+            width: 128px;
+            height: 128px;
+            border-radius: 50%;
+            overflow: hidden;
+            background-color: var(--app-background-light-shade);
+
+            img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+        }
+
+        .profile-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+
+            .profile-name {
+                font-family: 'Space Grotesk', sans-serif;
+                font-weight: 700;
+                font-size: 22px;
+                line-height: 28px;
+                color: var(--app-white);
+                margin: 0;
+            }
+
+            .profile-username,
+            .profile-rank {
+                font-family: 'Space Grotesk', sans-serif;
+                font-weight: 400;
+                font-size: 16px;
+                line-height: 24px;
+                color: var(--app-mute-color);
+                margin: 0;
+            }
+        }
+    }
+
+    .action-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: center;
+        max-width: 480px;
+        width: 100%;
+
+        ion-button {
+            --background: var(--app-background-light-shade);
+            --color: var(--app-white);
+            --border-radius: 20px;
+            --padding-start: 16px;
+            --padding-end: 16px;
+            height: 40px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 14px;
+            text-transform: none;
+            min-width: 84px;
+            flex: 1;
+            max-width: 181px;
+
+            &:hover {
+                --background: var(--app-primary);
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(115, 64, 235, 0.3);
+            }
+        }
+    }
+
+    @media (min-width: 1024px) {
+        padding: 24px 0;
+        gap: 24px;
+
+        .profile-info {
+            .profile-avatar {
+                width: 160px;
+                height: 160px;
+            }
+
+            .profile-details {
+                .profile-name {
+                    font-size: 28px;
+                    line-height: 36px;
+                }
+
+                .profile-username,
+                .profile-rank {
+                    font-size: 18px;
+                    line-height: 28px;
+                }
+            }
+        }
+
+        .action-buttons {
+            ion-button {
+                height: 48px;
+                font-size: 16px;
+            }
+        }
+    }
+}
+
+// Stats Section
+.stats-section {
+    padding: 16px;
+
+    .stats-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+
+        .stats-text {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+
+            .stats-label {
+                font-family: 'Space Grotesk', sans-serif;
+                font-weight: 400;
+                font-size: 14px;
+                line-height: 21px;
+                color: var(--app-mute-color);
+                margin: 0;
+            }
+
+            .stats-main {
+                font-family: 'Space Grotesk', sans-serif;
+                font-weight: 700;
+                font-size: 16px;
+                line-height: 20px;
+                color: var(--app-white);
+                margin: 0;
+            }
+
+            .stats-details {
+                font-family: 'Space Grotesk', sans-serif;
+                font-weight: 400;
+                font-size: 14px;
+                line-height: 21px;
+                color: var(--app-mute-color);
+                margin: 0;
+            }
+        }
+
+        .stats-image {
+            flex-shrink: 0;
+            width: 70px;
+            height: 70px;
+            border-radius: 12px;
+            overflow: hidden;
+
+            img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+        }
+    }
+
+    @media (min-width: 1024px) {
+        padding: 24px 0;
+
+        .stats-info {
+            .stats-text {
+                .stats-label {
+                    font-size: 16px;
+                    line-height: 24px;
+                }
+
+                .stats-main {
+                    font-size: 20px;
+                    line-height: 28px;
+                }
+
+                .stats-details {
+                    font-size: 16px;
+                    line-height: 24px;
+                }
+            }
+
+            .stats-image {
+                width: 90px;
+                height: 90px;
+            }
+        }
+    }
+}
+
+// Section Titles
+.section-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    line-height: 28px;
+    color: var(--app-white);
+    margin: 0 0 16px 0;
+    padding: 20px 16px 12px 16px;
+
+    @media (min-width: 1024px) {
+        font-size: 28px;
+        line-height: 36px;
+        padding: 32px 0 20px 0;
+    }
+}
+
+// NFT Vault Section
+.nft-vault-section {
+    .nft-scroll-container {
+        display: flex;
+        gap: 16px;
+        padding: 20px 16px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        scrollbar-width: none;
+        /* Firefox */
+        -ms-overflow-style: none;
+        /* Internet Explorer 10+ */
+        scroll-behavior: smooth;
+
+        &::-webkit-scrollbar {
+            /* WebKit */
+            display: none;
+        }
+
+        // Only show grab cursor on desktop
+        @media (min-width: 1024px) {
+            cursor: grab;
+
+            &.active {
+                cursor: grabbing;
+                scroll-snap-type: none;
+                /* Disable snap while dragging */
+            }
+        }
+
+        .nft-card {
+            flex: 0 0 auto;
+            min-width: 280px;
+            height: 160px;
+            scroll-snap-align: center;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+
+            // Mobile: Default state (blurred/faded)
+            @media (max-width: 1023px) {
+                opacity: 0.4;
+                filter: blur(2px);
+                transform: scale(0.9);
+
+                // Active card state (center card)
+                &.active-card {
+                    opacity: 1;
+                    filter: blur(0px);
+                    transform: scale(1) translateY(-8px);
+                    z-index: 2;
+                }
+            }
+
+            // Desktop: Normal hover behavior
+            @media (min-width: 1024px) {
+                opacity: 1;
+                filter: none;
+                transform: none;
+
+                &:hover {
+                    transform: translateY(-8px);
+                }
+            }
+
+            .nft-card-inner {
+                position: relative;
+                width: 100%;
+                height: 100%;
+                border-radius: 16px;
+                overflow: hidden;
+                background-color: var(--app-background-light-shade);
+
+                .nft-image {
+                    width: 100%;
+                    height: 100%;
+                    background-size: cover;
+                    background-position: center;
+                    background-repeat: no-repeat;
+                }
+
+                .nft-info {
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    padding: 8px 12px;
+                    background: linear-gradient(180deg, transparent 0%, rgba(23, 18, 33, 0.6) 70%, rgba(23, 18, 33, 0.9) 100%);
+
+                    .nft-header {
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        width: 100%;
+
+                        .nft-left {
+                            display: flex;
+                            align-items: center;
+                            gap: 6px;
+
+                            .nft-icon {
+                                width: 18px;
+                                height: 18px;
+                                border-radius: 50%;
+                                background-color: rgba(115, 64, 235, 0.2);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                flex-shrink: 0;
+
+                                svg {
+                                    width: 10px;
+                                    height: 10px;
+                                }
+                            }
+
+                            .nft-names {
+                                display: flex;
+                                align-items: center;
+                                gap: 4px;
+
+                                .nft-name {
+                                    font-family: 'Space Grotesk', sans-serif;
+                                    font-weight: 600;
+                                    font-size: 13px;
+                                    line-height: 16px;
+                                    color: var(--app-white);
+                                    margin: 0;
+                                }
+
+                                .nft-symbol {
+                                    font-family: 'Space Grotesk', sans-serif;
+                                    font-weight: 400;
+                                    font-size: 10px;
+                                    line-height: 12px;
+                                    color: var(--app-mute-color);
+                                    text-transform: uppercase;
+                                }
+                            }
+                        }
+
+                        .nft-price-info {
+                            display: flex;
+                            align-items: center;
+                            gap: 8px;
+
+                            .nft-price {
+                                font-family: 'Space Grotesk', sans-serif;
+                                font-weight: 500;
+                                font-size: 12px;
+                                line-height: 14px;
+                                color: var(--app-white);
+                            }
+
+                            .nft-change {
+                                font-family: 'Space Grotesk', sans-serif;
+                                font-weight: 600;
+                                font-size: 12px;
+                                line-height: 14px;
+
+                                &.positive {
+                                    color: #4CAF50;
+                                }
+
+                                &.negative {
+                                    color: #F44336;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .nft-scroll-container {
+            padding: 24px 0;
+            gap: 20px;
+            overflow-x: scroll;
+            cursor: grab;
+
+            &.active {
+                cursor: grabbing;
+                scroll-snap-type: none;
+            }
+
+            .nft-card {
+                min-width: 320px;
+                width: 320px;
+                height: 180px;
+                scroll-snap-align: start;
+                transform: none;
+                opacity: 1;
+
+                &:hover {
+                    transform: translateY(-12px);
+                }
+
+                .nft-card-inner {
+                    .nft-info {
+                        padding: 10px 16px;
+
+                        .nft-header {
+                            .nft-left {
+                                gap: 8px;
+
+                                .nft-icon {
+                                    width: 20px;
+                                    height: 20px;
+
+                                    svg {
+                                        width: 12px;
+                                        height: 12px;
+                                    }
+                                }
+
+                                .nft-names {
+                                    gap: 4px;
+
+                                    .nft-name {
+                                        font-size: 13px;
+                                        line-height: 16px;
+                                    }
+
+                                    .nft-symbol {
+                                        font-size: 10px;
+                                        line-height: 12px;
+                                    }
+                                }
+                            }
+
+                            .nft-price-info {
+                                gap: 8px;
+
+                                .nft-price {
+                                    font-size: 12px;
+                                    line-height: 14px;
+                                }
+
+                                .nft-change {
+                                    font-size: 12px;
+                                    line-height: 14px;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Match History Section
+.match-history-section {
+    .match-list {
+        display: flex;
+        flex-direction: column;
+
+        .match-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            background-color: var(--app-background);
+            transition: background-color 0.2s ease;
+
+            &:hover {
+                background-color: var(--app-background-light-shade-alt);
+            }
+
+            .match-icon {
+                width: 48px;
+                height: 48px;
+                background-color: var(--app-background-light-shade);
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                transition: all 0.2s ease;
+
+                img {
+                    width: 24px;
+                    height: 24px;
+                    transition: filter 0.2s ease;
+                }
+
+                // Win state - green
+                &.won {
+                    background-color: rgba(76, 175, 80, 0.1);
+                    border: 1px solid rgba(76, 175, 80, 0.3);
+
+                    img {
+                        filter: brightness(0) saturate(100%) invert(64%) sepia(98%) saturate(451%) hue-rotate(81deg) brightness(119%) contrast(119%);
+                    }
+                }
+
+                // Loss state - red
+                &.lost {
+                    background-color: rgba(244, 67, 54, 0.1);
+                    border: 1px solid rgba(244, 67, 54, 0.3);
+
+                    img {
+                        filter: brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%);
+                    }
+                }
+            }
+
+            .match-details {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+
+                .match-title-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    flex-wrap: wrap;
+
+                    .match-title {
+                        font-family: 'Space Grotesk', sans-serif;
+                        font-weight: 500;
+                        font-size: 16px;
+                        line-height: 24px;
+                        color: var(--app-white);
+                        margin: 0;
+                        transition: color 0.2s ease;
+
+                        // Win state - green
+                        &.won {
+                            color: #4CAF50;
+                        }
+
+                        // Loss state - red
+                        &.lost {
+                            color: #F44336;
+                        }
+                    }
+
+                    .opponent-name {
+                        font-family: 'Space Grotesk', sans-serif;
+                        font-weight: 500;
+                        font-size: 16px;
+                        line-height: 24px;
+                        color: var(--app-primary);
+                        cursor: pointer;
+                        text-decoration: underline;
+                        text-decoration-color: transparent;
+                        transition: all 0.2s ease;
+                        margin: 0;
+
+                        &:hover {
+                            color: var(--ion-color-secondary);
+                            text-decoration-color: var(--ion-color-secondary);
+                            transform: translateX(2px);
+                        }
+                    }
+
+                    .trophy-icon {
+                        width: 16px;
+                        height: 16px;
+                        filter: brightness(0) saturate(100%) invert(84%) sepia(78%) saturate(2076%) hue-rotate(3deg) brightness(103%) contrast(107%);
+                        animation: trophy-glow 2s ease-in-out infinite alternate;
+                        margin-left: auto;
+                    }
+                }
+
+                .match-info {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+
+                    .match-rating {
+                        font-family: 'Space Grotesk', sans-serif;
+                        font-weight: 600;
+                        font-size: 14px;
+                        line-height: 21px;
+                        padding: 4px 8px;
+                        border-radius: 12px;
+                        transition: all 0.2s ease;
+
+                        // Win state - green
+                        &.won {
+                            color: #4CAF50;
+                            background-color: rgba(76, 175, 80, 0.1);
+                            border: 1px solid rgba(76, 175, 80, 0.3);
+                        }
+
+                        // Loss state - red
+                        &.lost {
+                            color: #F44336;
+                            background-color: rgba(244, 67, 54, 0.1);
+                            border: 1px solid rgba(244, 67, 54, 0.3);
+                        }
+                    }
+
+                    .match-date {
+                        font-family: 'Space Grotesk', sans-serif;
+                        font-weight: 400;
+                        font-size: 14px;
+                        line-height: 21px;
+                        color: var(--app-mute-color);
+                    }
+                }
+            }
+        }
+    }
+
+    @media (min-width: 1024px) {
+        .match-list {
+            .match-item {
+                padding: 20px 0;
+
+                .match-icon {
+                    width: 56px;
+                    height: 56px;
+
+                    img {
+                        width: 28px;
+                        height: 28px;
+                    }
+                }
+
+                .match-details {
+                    .match-title-row {
+                        .match-title {
+                            font-size: 18px;
+                            line-height: 28px;
+                        }
+
+                        .opponent-name {
+                            font-size: 18px;
+                            line-height: 28px;
+                        }
+
+                        .trophy-icon {
+                            width: 20px;
+                            height: 20px;
+                        }
+                    }
+
+                    .match-info {
+                        .match-rating {
+                            font-size: 16px;
+                            line-height: 24px;
+                            padding: 6px 12px;
+                        }
+
+                        .match-date {
+                            font-size: 16px;
+                            line-height: 24px;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Trophy glow animation
+@keyframes trophy-glow {
+    0% {
+        filter: brightness(0) saturate(100%) invert(84%) sepia(78%) saturate(2076%) hue-rotate(3deg) brightness(103%) contrast(107%);
+        transform: scale(1);
+    }
+
+    100% {
+        filter: brightness(0) saturate(100%) invert(84%) sepia(78%) saturate(2076%) hue-rotate(3deg) brightness(120%) contrast(120%);
+        transform: scale(1.1);
+    }
+}

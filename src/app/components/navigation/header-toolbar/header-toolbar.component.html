@@ -1,0 +1,46 @@
+<ion-header>
+    <ion-toolbar>
+        <ion-title class="app-title">
+            {{ title }}
+        </ion-title>
+        <ion-buttons slot="end">
+            <ion-button fill="clear" class="profile-button" id="profile-trigger"
+                (click)="presentProfilePopover($event)">
+                <div class="profile-avatar">
+                    <img src="assets/images/profile-avatar.png" alt="Profile" />
+                </div>
+            </ion-button>
+        </ion-buttons>
+    </ion-toolbar>
+</ion-header>
+
+<!-- Profile Popover -->
+<ion-popover #profilePopover [dismissOnSelect]="true">
+    <ng-template>
+        <ion-content class="profile-popover-content">
+            <div class="profile-header">
+                <div class="profile-avatar-large">
+                    <img src="assets/images/profile-avatar.png" alt="Profile" />
+                </div>
+                <div class="profile-info">
+                    <div class="username">ChessMaster</div>
+                    <div class="email">player&#64;example.com</div>
+                </div>
+            </div>
+            <ion-list>
+                <ion-item button (click)="navigateFromPopover('profile')">
+                    <ion-icon src="assets/icons/chess-pawn.svg" slot="start"></ion-icon>
+                    <ion-label>My Profile</ion-label>
+                </ion-item>
+                <ion-item button (click)="navigateFromPopover('wallet')">
+                    <ion-icon src="assets/icons/wallet.svg" slot="start"></ion-icon>
+                    <ion-label>Wallet</ion-label>
+                </ion-item>
+                <ion-item button (click)="logout()">
+                    <ion-icon src="assets/icons/settings.svg" slot="start"></ion-icon>
+                    <ion-label>Logout</ion-label>
+                </ion-item>
+            </ion-list>
+        </ion-content>
+    </ng-template>
+</ion-popover>

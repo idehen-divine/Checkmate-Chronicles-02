@@ -1,0 +1,135 @@
+<app-header-toolbar title="Settings"></app-header-toolbar>
+<!-- Desktop Sidebar Component -->
+<app-side-bar (navigationClick)="onSidebarNavigation($event)"></app-side-bar>
+<ion-content [fullscreen]="true">
+	<div class="settings-container">
+
+		<!-- Settings Content -->
+		<div class="settings-main">
+
+			<div class="settings-content">
+				<!-- Account Settings Group (Full Width) -->
+				<div class="account-settings-group">
+					<!-- Account Settings Section -->
+					<div class="section-header">
+						<h2>Account Settings</h2>
+					</div>
+
+					<div class="profile-section">
+						<div class="profile-info">
+							<img [src]="profileImage" alt="Profile" class="profile-avatar">
+							<div class="profile-details">
+								<h3>Ethan Carter</h3>
+								<p class="username">&#64;ethancarter</p>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Preferences Group (Left Column) -->
+				<div class="preferences-group">
+					<!-- Game Preferences Section -->
+					<div class="section-header">
+						<h2>Game Preferences</h2>
+					</div>
+
+					<div class="preferences-section">
+						<div class="preference-item">
+							<span>Sounds</span>
+							<ion-toggle [(ngModel)]="soundsEnabled" class="custom-toggle"></ion-toggle>
+						</div>
+
+						<div class="preference-item">
+							<span>Hints</span>
+							<ion-toggle [(ngModel)]="hintsEnabled" class="custom-toggle"></ion-toggle>
+						</div>
+
+						<div class="preference-item">
+							<span>Legal Moves</span>
+							<ion-toggle [(ngModel)]="legalMovesEnabled" class="custom-toggle"></ion-toggle>
+						</div>
+					</div>
+
+					<!-- Notifications Section -->
+					<div class="section-header">
+						<h2>Notifications</h2>
+					</div>
+
+					<div class="notifications-section">
+						<div class="preference-item">
+							<span>Game Invites</span>
+							<ion-toggle [(ngModel)]="gameInvitesEnabled" class="custom-toggle"></ion-toggle>
+						</div>
+
+						<div class="preference-item">
+							<span>NFT Mints</span>
+							<ion-toggle [(ngModel)]="nftMintsEnabled" class="custom-toggle"></ion-toggle>
+						</div>
+
+						<div class="preference-item">
+							<span>Announcements</span>
+							<ion-toggle [(ngModel)]="announcementsEnabled" class="custom-toggle"></ion-toggle>
+						</div>
+					</div>
+				</div>
+
+				<!-- Support Group (Right Column) -->
+				<div class="support-group">
+					<!-- Blockchain & Wallet Section -->
+					<div class="section-header blockchain-header">
+						<h2>Blockchain & Wallet</h2>
+						<ion-icon name="add-circle-outline"></ion-icon>
+					</div>
+
+					<div class="wallet-section">
+						<div class="wallet-address">
+							<span>0x123...456</span>
+							<ion-button fill="solid" size="small" class="disconnect-btn">
+								Disconnect
+							</ion-button>
+						</div>
+					</div>
+					<!-- Support & Legal Section -->
+					<div class="section-header">
+						<h2>Support & Legal</h2>
+					</div>
+
+					<div class="support-section">
+						<ion-button expand="block" fill="solid" shape="round" class="support-btn">
+							Help
+						</ion-button>
+
+						<ion-button expand="block" fill="solid" shape="round" class="support-btn">
+							Terms of Service
+						</ion-button>
+
+						<ion-button expand="block" fill="solid" shape="round" class="support-btn">
+							Privacy Policy
+						</ion-button>
+
+						<ion-button expand="block" fill="solid" shape="round" class="support-btn">
+							Report a Bug
+						</ion-button>
+					</div>
+
+					<!-- Danger Zone Section -->
+					<div class="section-header">
+						<h2>Danger Zone</h2>
+					</div>
+
+					<div class="danger-section">
+						<ion-button expand="block" fill="solid" shape="round" color="danger" class="delete-btn"
+							(click)="confirmDeleteAccount()">
+							Delete Account
+						</ion-button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Bottom Navigation Component -->
+		<app-bottom-nav (navigationClick)="onBottomNavigation($event)"
+			(submenuClick)="onBottomSubmenuNavigation($event)">
+		</app-bottom-nav>
+	</div>
+</ion-content>

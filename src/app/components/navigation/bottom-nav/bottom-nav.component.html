@@ -1,0 +1,113 @@
+<ion-footer>
+    <ion-toolbar>
+        <div class="bottom-nav-content">
+            <ion-button fill="clear" size="small" id="home-trigger" (click)="presentPopover($event, 'home')"
+                [class.active]="isActive('home')" class="nav-button">
+                <div class="nav-button-content">
+                    <ion-icon src="assets/icons/chess-king.svg"></ion-icon>
+                    <ion-label>Home</ion-label>
+                </div>
+            </ion-button>
+
+            <ion-button fill="clear" size="small" id="nft-trigger" (click)="presentPopover($event, 'nft')"
+                [class.active]="isActive('nft')" class="nav-button">
+                <div class="nav-button-content">
+                    <ion-icon src="assets/icons/chess-match.svg"></ion-icon>
+                    <ion-label>NFT Vault</ion-label>
+                </div>
+            </ion-button>
+
+            <ion-button fill="clear" size="small" id="wallet-trigger" (click)="presentPopover($event, 'wallet')"
+                [class.active]="isActive('wallet')" class="nav-button">
+                <div class="nav-button-content">
+                    <ion-icon src="assets/icons/wallet.svg"></ion-icon>
+                    <ion-label>Wallet</ion-label>
+                </div>
+            </ion-button>
+
+            <ion-button fill="clear" size="small" id="social-trigger" (click)="presentPopover($event, 'social')"
+                [class.active]="isActive('social')" class="nav-button">
+                <div class="nav-button-content">
+                    <ion-icon src="assets/icons/settings.svg"></ion-icon>
+                    <ion-label>More</ion-label>
+                </div>
+            </ion-button>
+        </div>
+    </ion-toolbar>
+</ion-footer>
+
+<!-- Home Popover -->
+<ion-popover #homePopover [dismissOnSelect]="true">
+    <ng-template>
+        <ion-content class="nav-popover-content">
+            <ion-list>
+                <ion-item button (click)="navigateFromPopover('dashboard')">
+                    <ion-icon src="assets/icons/chess-king.svg" slot="start"></ion-icon>
+                    <ion-label>Dashboard</ion-label>
+                </ion-item>
+                <ion-item button (click)="navigateFromPopover('coming-soon')">
+                    <ion-icon src="assets/icons/chess-clock.svg" slot="start"></ion-icon>
+                    <ion-label>Quick Play</ion-label>
+                </ion-item>
+                <ion-item button (click)="navigateFromPopover('coming-soon')">
+                    <ion-icon src="assets/icons/chess-rook.svg" slot="start"></ion-icon>
+                    <ion-label>Tournaments</ion-label>
+                </ion-item>
+            </ion-list>
+        </ion-content>
+    </ng-template>
+</ion-popover>
+
+<!-- NFT Popover -->
+<ion-popover #nftPopover [dismissOnSelect]="true">
+    <ng-template>
+        <ion-content class="nav-popover-content">
+            <ion-list>
+                <ion-item button (click)="navigateFromPopover('coming-soon')">
+                    <ion-icon src="assets/icons/chess-match.svg" slot="start"></ion-icon>
+                    <ion-label>My NFTs</ion-label>
+                </ion-item>
+                <ion-item button (click)="navigateFromPopover('coming-soon')">
+                    <ion-icon src="assets/icons/chess-board.svg" slot="start"></ion-icon>
+                    <ion-label>Marketplace</ion-label>
+                </ion-item>
+            </ion-list>
+        </ion-content>
+    </ng-template>
+</ion-popover>
+
+<!-- Wallet Popover -->
+<ion-popover #walletPopover [dismissOnSelect]="true">
+    <ng-template>
+        <ion-content class="nav-popover-content">
+            <ion-list>
+                <ion-item button (click)="navigateFromPopover('coming-soon')">
+                    <ion-icon src="assets/icons/wallet.svg" slot="start"></ion-icon>
+                    <ion-label>Balance</ion-label>
+                </ion-item>
+                <ion-item button (click)="navigateFromPopover('coming-soon')">
+                    <ion-icon src="assets/icons/chess-pawn.svg" slot="start"></ion-icon>
+                    <ion-label>History</ion-label>
+                </ion-item>
+            </ion-list>
+        </ion-content>
+    </ng-template>
+</ion-popover>
+
+<!-- Social Popover -->
+<ion-popover #socialPopover [dismissOnSelect]="true">
+    <ng-template>
+        <ion-content class="nav-popover-content">
+            <ion-list>
+                <ion-item button (click)="navigateFromPopover('coming-soon')">
+                    <ion-icon src="assets/icons/chess-board.svg" slot="start"></ion-icon>
+                    <ion-label>Friends</ion-label>
+                </ion-item>
+                <ion-item button (click)="navigateFromPopover('settings')">
+                    <ion-icon src="assets/icons/settings.svg" slot="start"></ion-icon>
+                    <ion-label>Settings</ion-label>
+                </ion-item>
+            </ion-list>
+        </ion-content>
+    </ng-template>
+</ion-popover>

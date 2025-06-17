@@ -1,0 +1,109 @@
+<app-header-toolbar></app-header-toolbar>
+<app-side-bar (navigationClick)="onSidebarNavigation($event)"></app-side-bar>
+<ion-content [fullscreen]="true">
+	<div class="dashboard-container">
+
+		<!-- Main Content Area -->
+		<div class="main-content">
+			<div class="content-left">
+				<!-- Hero Section -->
+				<div class="hero-section">
+					<div class="hero-background"></div>
+					<div class="hero-content">
+						<h2 class="hero-title">Welcome Back, Champion!</h2>
+						<p class="hero-subtitle">Showcase your NFT trophies and share your victories.</p>
+						<ion-button class="share-wins-btn" shape="round">
+							Share My Wins
+						</ion-button>
+					</div>
+				</div>
+
+				<!-- Quick Actions -->
+				<div class="quick-actions-section">
+					<div class="section-header">
+						<h3>Quick Actions</h3>
+					</div>
+					<div class="quick-actions">
+						<ion-button class="action-btn primary" expand="block" shape="round">
+							Start New Game
+						</ion-button>
+						<ion-button class="action-btn secondary" expand="block" shape="round">
+							Join Ranked Match
+						</ion-button>
+						<ion-button class="action-btn secondary" expand="block" shape="round">
+							Spectate Live Game
+						</ion-button>
+						<ion-button class="action-btn secondary" expand="block" shape="round">
+							Replay My Games
+						</ion-button>
+					</div>
+				</div>
+			</div>
+
+			<div class="content-right">
+				<!-- Opponent Finder -->
+				<div class="opponent-finder-section">
+					<div class="section-header">
+						<h3>Opponent Finder</h3>
+					</div>
+					<div class="opponent-finder">
+						<div class="finder-item">
+							<div class="finder-icon">
+								<img src="assets/icons/chess-clock.svg" alt="Search" />
+							</div>
+							<div class="finder-content">
+								<div class="finder-title">Queue Status: Searching</div>
+								<div class="finder-subtitle">Estimated Wait: 2 min</div>
+							</div>
+						</div>
+						<div class="finder-item">
+							<div class="finder-icon">
+								<img src="assets/icons/chess-piece.svg" alt="AI" />
+							</div>
+							<div class="finder-content">
+								<div class="finder-title">Play vs. AI</div>
+								<div class="finder-subtitle">Challenge the AI</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Recent Activity -->
+				<div class="recent-activity-section">
+					<div class="section-header">
+						<h3>Recent Activity</h3>
+						<span class="view-all">View All</span>
+					</div>
+					<div class="recent-activity">
+						<div class="activity-item">
+							<div class="activity-icon">
+								<img src="assets/icons/chess-rook.svg" alt="Game" />
+							</div>
+							<div class="activity-content">
+								<div class="activity-title">Blitz Game</div>
+								<div class="activity-result">Result: Win</div>
+							</div>
+							<ion-button class="replay-btn" size="small" shape="round">
+								Replay
+							</ion-button>
+						</div>
+						<div class="activity-item">
+							<div class="activity-icon">
+								<img src="assets/icons/chess-rook.svg" alt="Game" />
+							</div>
+							<div class="activity-content">
+								<div class="activity-title">Rapid Tournament</div>
+								<div class="activity-result">Result: Loss</div>
+							</div>
+							<ion-button class="replay-btn" size="small" shape="round">
+								Replay
+							</ion-button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</ion-content>
+<app-bottom-nav (navigationClick)="onBottomNavigation($event)" (submenuClick)="onBottomSubmenuNavigation($event)">
+</app-bottom-nav>
