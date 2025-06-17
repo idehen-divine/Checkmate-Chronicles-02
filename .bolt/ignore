@@ -1,8 +1,0 @@
-.browserslistrc
-.editorconfig
-.eslintrc.json
-.gitignore
-.yarnrc.yml
-resource/*
-supabase/*
-www/*
