@@ -1,20 +1,16 @@
 /*
-# Create Chat System Tables
+# Create Messages Table
 
-1. New Tables
-- `chat` - Game chat rooms
+1. New Table
 - `message` - Chat messages
 
 2. Security
-- Enable RLS on both tables
-- Add policies for chat and message management
-*/
+- Enable RLS on messages table
+- Add policies for message management
 
--- Create chat table
-CREATE TABLE IF NOT EXISTS chat (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
-    game_id uuid REFERENCES games (id) ON DELETE CASCADE
-);
+3. Indexes
+- Performance indexes for message queries
+*/
 
 -- Create message table
 CREATE TABLE IF NOT EXISTS message (
@@ -25,42 +21,12 @@ CREATE TABLE IF NOT EXISTS message (
     timestamp timestamptz DEFAULT now()
 );
 
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_message_chat_id ON message(chat_id);
+CREATE INDEX IF NOT EXISTS idx_message_timestamp ON message(timestamp);
+
 -- Enable Row Level Security
-ALTER TABLE chat ENABLE ROW LEVEL SECURITY;
-
 ALTER TABLE message ENABLE ROW LEVEL SECURITY;
-
--- Create policies for chat table
-CREATE POLICY "Users can read chat from their games" ON chat FOR
-SELECT TO authenticated USING (
-        EXISTS (
-            SELECT 1
-            FROM games
-            WHERE
-                games.id = chat.game_id
-                AND (
-                    games.player1_id = auth.uid ()
-                    OR games.player2_id = auth.uid ()
-                )
-        )
-    );
-
-CREATE POLICY "Users can create chat for their games" ON chat FOR
-INSERT
-    TO authenticated
-WITH
-    CHECK (
-        EXISTS (
-            SELECT 1
-            FROM games
-            WHERE
-                games.id = chat.game_id
-                AND (
-                    games.player1_id = auth.uid ()
-                    OR games.player2_id = auth.uid ()
-                )
-        )
-    );
 
 -- Create policies for message table
 CREATE POLICY "Users can read messages from their game chats" ON message FOR
@@ -95,4 +61,4 @@ WITH
                     OR games.player2_id = auth.uid ()
                 )
         )
-    );
+    ); 

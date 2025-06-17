@@ -29,7 +29,6 @@ CREATE TABLE IF NOT EXISTS users (
   algorand_secret_phrase text,
 
 -- Chess Rating System Fields
-
 current_elo INTEGER DEFAULT 1000 NOT NULL,
 highest_elo INTEGER DEFAULT 1000 NOT NULL,
 current_rank_id UUID REFERENCES chess_ranks (id),

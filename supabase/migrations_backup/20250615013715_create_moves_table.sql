@@ -1,25 +1,16 @@
 /*
-# Create Games and Moves Tables
+# Create Moves Table
 
-1. New Tables
-- `games` - Chess game records and state
+1. New Table
 - `moves` - Individual chess moves history
 
 2. Security
-- Enable RLS on both tables
-- Add policies for game and move management
-*/
+- Enable RLS on moves table
+- Add policies for move management
 
--- Create games table
-CREATE TABLE IF NOT EXISTS games (
-    id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
-    player1_id uuid REFERENCES users (id) ON DELETE CASCADE,
-    player2_id uuid REFERENCES users (id) ON DELETE CASCADE,
-    game_state jsonb NOT NULL DEFAULT '{}',
-    status text NOT NULL DEFAULT 'active',
-    created_at timestamptz DEFAULT now(),
-    finished_at timestamptz
-);
+3. Indexes
+- Performance indexes for move queries
+*/
 
 -- Create moves table
 CREATE TABLE IF NOT EXISTS moves (
@@ -30,29 +21,13 @@ CREATE TABLE IF NOT EXISTS moves (
     timestamp timestamptz DEFAULT now()
 );
 
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_moves_game_id ON moves (game_id);
+
+CREATE INDEX IF NOT EXISTS idx_moves_timestamp ON moves (timestamp);
+
 -- Enable Row Level Security
-ALTER TABLE games ENABLE ROW LEVEL SECURITY;
-
 ALTER TABLE moves ENABLE ROW LEVEL SECURITY;
-
--- Create policies for games table
-CREATE POLICY "Users can read their games" ON games FOR
-SELECT TO authenticated USING (
-        auth.uid () = player1_id
-        OR auth.uid () = player2_id
-    );
-
-CREATE POLICY "Users can create games" ON games FOR
-INSERT
-    TO authenticated
-WITH
-    CHECK (auth.uid () = player1_id);
-
-CREATE POLICY "Players can update their games" ON games FOR
-UPDATE TO authenticated USING (
-    auth.uid () = player1_id
-    OR auth.uid () = player2_id
-);
 
 -- Create policies for moves table
 CREATE POLICY "Users can read moves from their games" ON moves FOR
