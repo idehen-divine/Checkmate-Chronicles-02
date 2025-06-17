@@ -36,17 +36,17 @@
 					<div class="preferences-section">
 						<div class="preference-item">
 							<span>Sounds</span>
-							<ion-toggle [(ngModel)]="soundsEnabled" class="custom-toggle"></ion-toggle>
+							<ion-toggle [(ngModel)]="soundsEnabled" (ionChange)="onSoundsToggle()" class="custom-toggle"></ion-toggle>
 						</div>
 
 						<div class="preference-item">
 							<span>Hints</span>
-							<ion-toggle [(ngModel)]="hintsEnabled" class="custom-toggle"></ion-toggle>
+							<ion-toggle [(ngModel)]="hintsEnabled" (ionChange)="onHintsToggle()" class="custom-toggle"></ion-toggle>
 						</div>
 
 						<div class="preference-item">
 							<span>Legal Moves</span>
-							<ion-toggle [(ngModel)]="legalMovesEnabled" class="custom-toggle"></ion-toggle>
+							<ion-toggle [(ngModel)]="legalMovesEnabled" (ionChange)="onLegalMovesToggle()" class="custom-toggle"></ion-toggle>
 						</div>
 					</div>
 
@@ -58,17 +58,17 @@
 					<div class="notifications-section">
 						<div class="preference-item">
 							<span>Game Invites</span>
-							<ion-toggle [(ngModel)]="gameInvitesEnabled" class="custom-toggle"></ion-toggle>
+							<ion-toggle [(ngModel)]="gameInvitesEnabled" (ionChange)="onGameInvitesToggle()" class="custom-toggle"></ion-toggle>
 						</div>
 
 						<div class="preference-item">
 							<span>NFT Mints</span>
-							<ion-toggle [(ngModel)]="nftMintsEnabled" class="custom-toggle"></ion-toggle>
+							<ion-toggle [(ngModel)]="nftMintsEnabled" (ionChange)="onNftMintsToggle()" class="custom-toggle"></ion-toggle>
 						</div>
 
 						<div class="preference-item">
 							<span>Announcements</span>
-							<ion-toggle [(ngModel)]="announcementsEnabled" class="custom-toggle"></ion-toggle>
+							<ion-toggle [(ngModel)]="announcementsEnabled" (ionChange)="onAnnouncementsToggle()" class="custom-toggle"></ion-toggle>
 						</div>
 					</div>
 				</div>
