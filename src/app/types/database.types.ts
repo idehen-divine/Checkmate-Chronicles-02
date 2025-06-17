@@ -10,6 +10,12 @@ export interface Database {
                     algorand_wallet_address?: string;
                     algorand_private_key?: string;
                     algorand_secret_phrase?: string;
+                    sounds_enabled?: boolean;
+                    hints_enabled?: boolean;
+                    legal_moves_enabled?: boolean;
+                    game_invites_enabled?: boolean;
+                    nft_mints_enabled?: boolean;
+                    announcements_enabled?: boolean;
                 };
                 Insert: {
                     id?: string;
@@ -19,6 +25,12 @@ export interface Database {
                     algorand_wallet_address?: string;
                     algorand_private_key?: string;
                     algorand_secret_phrase?: string;
+                    sounds_enabled?: boolean;
+                    hints_enabled?: boolean;
+                    legal_moves_enabled?: boolean;
+                    game_invites_enabled?: boolean;
+                    nft_mints_enabled?: boolean;
+                    announcements_enabled?: boolean;
                 };
                 Update: {
                     id?: string;
@@ -28,6 +40,12 @@ export interface Database {
                     algorand_wallet_address?: string;
                     algorand_private_key?: string;
                     algorand_secret_phrase?: string;
+                    sounds_enabled?: boolean;
+                    hints_enabled?: boolean;
+                    legal_moves_enabled?: boolean;
+                    game_invites_enabled?: boolean;
+                    nft_mints_enabled?: boolean;
+                    announcements_enabled?: boolean;
                 };
             };
             games: {
@@ -144,4 +162,4 @@ export interface Database {
             };
         };
     };
-} 
+}

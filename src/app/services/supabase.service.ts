@@ -101,6 +101,24 @@ export class SupabaseService {
 		return { data, error };
 	}
 
+	// User preferences methods
+	async updateUserPreferences(userId: string, preferences: {
+		sounds_enabled?: boolean;
+		hints_enabled?: boolean;
+		legal_moves_enabled?: boolean;
+		game_invites_enabled?: boolean;
+		nft_mints_enabled?: boolean;
+		announcements_enabled?: boolean;
+	}) {
+		const { data, error } = await this.supabase
+			.from('users')
+			.update(preferences)
+			.eq('id', userId)
+			.select()
+			.single();
+		return { data, error };
+	}
+
 	// Database access
 	get db() {
 		return this.supabase;

@@ -14,6 +14,7 @@ import { SideBarComponent } from '../../components/navigation/side-bar/side-bar.
 import { BottomNavComponent } from '../../components/navigation/bottom-nav/bottom-nav.component';
 import { HeaderToolbarComponent } from '../../components/navigation/header-toolbar/header-toolbar.component';
 import { NavigationUtil, NavigationMixin, NavigationComponent } from '../../utils';
+import { ProfileService } from '../../services';
 
 @Component({
 	selector: 'app-settings',
@@ -57,7 +58,8 @@ export class SettingsPage implements OnInit, NavigationComponent {
 
 	constructor(
 		private alertController: AlertController,
-		private navigationUtil: NavigationUtil
+		private navigationUtil: NavigationUtil,
+		private profileService: ProfileService
 	) {
 		// Register icons
 		addIcons({
@@ -69,6 +71,40 @@ export class SettingsPage implements OnInit, NavigationComponent {
 	}
 
 	ngOnInit() {
+		this.loadUserPreferences();
+	}
+
+	private loadUserPreferences() {
+		this.profileService.getUserPreferences().subscribe({
+			next: (preferences) => {
+				this.soundsEnabled = preferences.sounds_enabled;
+				this.hintsEnabled = preferences.hints_enabled;
+				this.legalMovesEnabled = preferences.legal_moves_enabled;
+				this.gameInvitesEnabled = preferences.game_invites_enabled;
+				this.nftMintsEnabled = preferences.nft_mints_enabled;
+				this.announcementsEnabled = preferences.announcements_enabled;
+			},
+			error: (error) => {
+				console.error('Error loading user preferences:', error);
+			}
+		});
+	}
+
+	private async updatePreferences() {
+		const preferences = {
+			sounds_enabled: this.soundsEnabled,
+			hints_enabled: this.hintsEnabled,
+			legal_moves_enabled: this.legalMovesEnabled,
+			game_invites_enabled: this.gameInvitesEnabled,
+			nft_mints_enabled: this.nftMintsEnabled,
+			announcements_enabled: this.announcementsEnabled
+		};
+
+		const result = await this.profileService.updateUserPreferences(preferences);
+		if (!result.success) {
+			console.error('Failed to update preferences:', result.error);
+			// Optionally show an error message to the user
+		}
 	}
 
 	// Navigation Methods - Use the mixin methods
@@ -93,7 +129,31 @@ export class SettingsPage implements OnInit, NavigationComponent {
 		this.navigationMethods.openMenu();
 	}
 
-	// Settings-specific methods
+	// Settings-specific methods with preference updates
+	onSoundsToggle() {
+		this.updatePreferences();
+	}
+
+	onHintsToggle() {
+		this.updatePreferences();
+	}
+
+	onLegalMovesToggle() {
+		this.updatePreferences();
+	}
+
+	onGameInvitesToggle() {
+		this.updatePreferences();
+	}
+
+	onNftMintsToggle() {
+		this.updatePreferences();
+	}
+
+	onAnnouncementsToggle() {
+		this.updatePreferences();
+	}
+
 	onNotificationToggle(event: any) {
 		this.notificationsEnabled = event.detail.checked;
 		console.log('Notifications:', this.notificationsEnabled);
