@@ -1,7 +1,7 @@
 <ion-content [fullscreen]="true">
 	<div class="profile-container">
 		<!-- Sidebar Navigation Component (desktop only) -->
-		<app-side-bar (navigationClick)="onSidebarNavigation($event)"></app-side-bar>
+		<!-- <app-side-bar (navigationClick)="onSidebarNavigation($event)"></app-side-bar> -->
 
 		<!-- Main Content -->
 		<div class="main-content">
@@ -18,39 +18,79 @@
 			<!-- Profile Section -->
 			<div class="profile-section">
 				<div class="profile-info">
-					<div class="profile-avatar">
-						<img src="assets/images/profile-avatar-large.png" alt="Profile Avatar" />
-					</div>
-					<div class="profile-details">
-						<h1 class="profile-name">{{ profileName }}</h1>
-						<p class="profile-username">{{ profileUsername }}</p>
-						<p class="profile-rank">{{ profileRank }}</p>
-					</div>
+					<ng-container *ngIf="isLoadingProfile">
+						<div class="profile-skeleton-container">
+							<ion-skeleton-text animated
+								style="width: 80px; height: 80px; border-radius: 50%; margin-bottom: 16px;"></ion-skeleton-text>
+							<div class="profile-details-skeleton">
+								<ion-skeleton-text animated
+									style="width: 180px; height: 32px; margin-bottom: 8px;"></ion-skeleton-text>
+								<ion-skeleton-text animated
+									style="width: 120px; height: 20px; margin-bottom: 8px;"></ion-skeleton-text>
+								<ion-skeleton-text animated style="width: 140px; height: 18px;"></ion-skeleton-text>
+							</div>
+						</div>
+					</ng-container>
+					<ng-container *ngIf="!isLoadingProfile && userProfile">
+						<div class="profile-avatar">
+							<img [src]="userProfile.avatar" [alt]="userProfile.name" />
+						</div>
+						<div class="profile-details">
+							<h1 class="profile-name">{{ userProfile.name }}</h1>
+							<p class="profile-username">&#64;{{ userProfile.username }}</p>
+							<p class="profile-rank">{{ userProfile.rank }}</p>
+						</div>
+					</ng-container>
 				</div>
 
 				<!-- Action Buttons -->
-				<div class="action-buttons">
-					<ion-button shape="round" class="edit-profile-btn" (click)="editProfile()">
-						Edit Profile
-					</ion-button>
-					<ion-button shape="round" class="public-profile-btn" (click)="viewPublicProfile()">
-						Public Profile
-					</ion-button>
-				</div>
+				<!-- <div class="action-buttons">
+					<ng-container *ngIf="isLoadingProfile">
+						<ion-skeleton-text animated
+							style="width: 120px; height: 40px; border-radius: 20px; margin-right: 12px;"></ion-skeleton-text>
+						<ion-skeleton-text animated
+							style="width: 120px; height: 40px; border-radius: 20px;"></ion-skeleton-text>
+					</ng-container>
+					<ng-container *ngIf="!isLoadingProfile">
+						<ion-button shape="round" class="edit-profile-btn" (click)="editProfile()">
+							Edit Profile
+						</ion-button>
+						<ion-button shape="round" class="public-profile-btn" (click)="viewPublicProfile()">
+							Public Profile
+						</ion-button>
+					</ng-container>
+				</div> -->
 			</div>
 
 			<!-- Stats Section -->
 			<div class="stats-section">
 				<div class="stats-info">
-					<div class="stats-text">
-						<p class="stats-label">Stats</p>
-						<p class="stats-main">{{ statsWins }} | Losses: {{ statsLosses }}</p>
-						<p class="stats-details">NFTs: {{ statsNFTs }} | Streak: {{ statsStreak }} | Games: {{
-							statsGames }}</p>
-					</div>
-					<div class="stats-image">
-						<img src="assets/images/chess-trophy-stats.png" alt="Chess Trophy" />
-					</div>
+					<ng-container *ngIf="isLoadingStats">
+						<div class="stats-skeleton-container">
+							<div class="stats-text-skeleton">
+								<ion-skeleton-text animated
+									style="width: 60px; height: 20px; margin-bottom: 8px;"></ion-skeleton-text>
+								<ion-skeleton-text animated
+									style="width: 200px; height: 24px; margin-bottom: 8px;"></ion-skeleton-text>
+								<ion-skeleton-text animated style="width: 250px; height: 18px;"></ion-skeleton-text>
+							</div>
+							<div class="stats-image-skeleton">
+								<ion-skeleton-text animated
+									style="width: 60px; height: 60px; border-radius: 8px;"></ion-skeleton-text>
+							</div>
+						</div>
+					</ng-container>
+					<ng-container *ngIf="!isLoadingStats && userStats">
+						<div class="stats-text">
+							<p class="stats-label">Stats</p>
+							<p class="stats-main">{{ userStats.wins }} | Losses: {{ userStats.losses }}</p>
+							<p class="stats-details">NFTs: {{ userStats.nfts }} | Streak: {{ userStats.streak }} |
+								Games: {{ userStats.games }}</p>
+						</div>
+						<div class="stats-image">
+							<img src="assets/images/chess-trophy-stats.png" alt="Chess Trophy" />
+						</div>
+					</ng-container>
 				</div>
 			</div>
 
@@ -58,36 +98,69 @@
 			<div class="nft-vault-section">
 				<h2 class="section-title">NFT Vault</h2>
 				<div class="nft-scroll-container" #nftScrollContainer>
-					<div class="nft-card" *ngFor="let nft of nftCollection">
-						<div class="nft-card-inner">
-							<div class="nft-image" [style.background-image]="'url(' + nft.image + ')'">
-							</div>
-							<div class="nft-info">
-								<div class="nft-header">
-									<div class="nft-left">
-										<div class="nft-icon">
-											<!-- Small Algorand icon -->
-											<svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-												xmlns="http://www.w3.org/2000/svg">
-												<path d="M12 2L22 20H18L15 14H9L12 8L6 20H2L12 2Z" fill="white" />
-											</svg>
+					<ng-container *ngIf="isLoadingNFTs">
+						<!-- NFT Skeleton Cards -->
+						<div class="nft-card-skeleton" *ngFor="let placeholder of [1,2,3]">
+							<div class="nft-card-inner">
+								<div class="nft-image-skeleton">
+									<ion-skeleton-text animated
+										style="width: 100%; height: 120px; border-radius: 8px;"></ion-skeleton-text>
+								</div>
+								<div class="nft-info-skeleton">
+									<div class="nft-header-skeleton">
+										<div class="nft-left-skeleton">
+											<ion-skeleton-text animated
+												style="width: 16px; height: 16px; border-radius: 50%; margin-right: 8px;"></ion-skeleton-text>
+											<div class="nft-names-skeleton">
+												<ion-skeleton-text animated
+													style="width: 80px; height: 14px; margin-bottom: 4px;"></ion-skeleton-text>
+												<ion-skeleton-text animated
+													style="width: 60px; height: 12px;"></ion-skeleton-text>
+											</div>
 										</div>
-										<div class="nft-names">
-											<span class="nft-name">{{ nft.name }}</span>
-											<span class="nft-symbol">{{ nft.symbol }}</span>
+										<div class="nft-price-skeleton">
+											<ion-skeleton-text animated
+												style="width: 50px; height: 14px; margin-bottom: 4px;"></ion-skeleton-text>
+											<ion-skeleton-text animated
+												style="width: 40px; height: 12px;"></ion-skeleton-text>
 										</div>
-									</div>
-									<div class="nft-price-info">
-										<span class="nft-price">{{ nft.price }}</span>
-										<span class="nft-change" [class.positive]="nft.isPositive"
-											[class.negative]="!nft.isPositive">
-											{{ nft.priceChange }}
-										</span>
 									</div>
 								</div>
 							</div>
 						</div>
-					</div>
+					</ng-container>
+					<ng-container *ngIf="!isLoadingNFTs">
+						<div class="nft-card" *ngFor="let nft of nftCollection">
+							<div class="nft-card-inner">
+								<div class="nft-image" [style.background-image]="'url(' + nft.image + ')'">
+								</div>
+								<div class="nft-info">
+									<div class="nft-header">
+										<div class="nft-left">
+											<div class="nft-icon">
+												<!-- Small Algorand icon -->
+												<svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+													xmlns="http://www.w3.org/2000/svg">
+													<path d="M12 2L22 20H18L15 14H9L12 8L6 20H2L12 2Z" fill="white" />
+												</svg>
+											</div>
+											<div class="nft-names">
+												<span class="nft-name">{{ nft.name }}</span>
+												<span class="nft-symbol">{{ nft.symbol }}</span>
+											</div>
+										</div>
+										<div class="nft-price-info">
+											<span class="nft-price">{{ nft.price }}</span>
+											<span class="nft-change" [class.positive]="nft.isPositive"
+												[class.negative]="!nft.isPositive">
+												{{ nft.priceChange }}
+											</span>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</ng-container>
 				</div>
 			</div>
 
@@ -95,26 +168,48 @@
 			<div class="match-history-section">
 				<h2 class="section-title">Match History</h2>
 				<div class="match-list">
-					<div class="match-item" *ngFor="let match of matchHistory">
-						<div class="match-icon" [class]="match.result.toLowerCase()">
-							<img src="assets/icons/chess-match.svg" alt="Chess" />
-						</div>
-						<div class="match-details">
-							<div class="match-title-row">
-								<span class="match-title" [class]="match.result.toLowerCase()">Match vs. </span>
-								<span class="opponent-name" (click)="viewOpponentProfile(match.opponentId)">{{
-									match.opponentName
-									}}</span>
-								<img *ngIf="match.result.toLowerCase() === 'won'" src="assets/icons/trophy.svg"
-									alt="Trophy" class="trophy-icon" />
+					<ng-container *ngIf="isLoadingMatches">
+						<!-- Match History Skeleton Items -->
+						<div class="match-item-skeleton" *ngFor="let placeholder of [1,2,3,4]">
+							<div class="match-icon-skeleton">
+								<ion-skeleton-text animated
+									style="width: 40px; height: 40px; border-radius: 50%;"></ion-skeleton-text>
 							</div>
-							<div class="match-info">
-								<span class="match-rating" [class]="match.result.toLowerCase()">{{ match.eloChange
-									}}</span>
-								<span class="match-date">{{ match.date }}</span>
+							<div class="match-details-skeleton">
+								<div class="match-title-skeleton">
+									<ion-skeleton-text animated
+										style="width: 180px; height: 18px; margin-bottom: 4px;"></ion-skeleton-text>
+								</div>
+								<div class="match-info-skeleton">
+									<ion-skeleton-text animated
+										style="width: 80px; height: 16px; margin-right: 16px;"></ion-skeleton-text>
+									<ion-skeleton-text animated style="width: 100px; height: 16px;"></ion-skeleton-text>
+								</div>
 							</div>
 						</div>
-					</div>
+					</ng-container>
+					<ng-container *ngIf="!isLoadingMatches">
+						<div class="match-item" *ngFor="let match of matchHistory">
+							<div class="match-icon" [class]="match.result.toLowerCase()">
+								<img src="assets/icons/chess-match.svg" alt="Chess" />
+							</div>
+							<div class="match-details">
+								<div class="match-title-row">
+									<span class="match-title" [class]="match.result.toLowerCase()">Match vs. </span>
+									<span class="opponent-name" (click)="viewOpponentProfile(match.opponentId)">{{
+										match.opponentName
+										}}</span>
+									<img *ngIf="match.result.toLowerCase() === 'won'" src="assets/icons/trophy.svg"
+										alt="Trophy" class="trophy-icon" />
+								</div>
+								<div class="match-info">
+									<span class="match-rating" [class]="match.result.toLowerCase()">{{ match.eloChange
+										}}</span>
+									<span class="match-date">{{ match.date }}</span>
+								</div>
+							</div>
+						</div>
+					</ng-container>
 				</div>
 			</div>
 		</div>

@@ -1,21 +1,23 @@
 import { Component, OnInit, ElementRef, ViewChild, OnDestroy, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonContent, IonButton } from '@ionic/angular/standalone';
+import { IonContent, IonButton, IonSkeletonText } from '@ionic/angular/standalone';
 import { SideBarComponent } from '../../components/navigation/side-bar/side-bar.component';
 import { BottomNavComponent } from '../../components/navigation/bottom-nav/bottom-nav.component';
-import { ProfileService } from '../../services';
-import { NFTItem, MatchHistoryItem } from '../../types';
+import { UserProfileService, UserStatsService, NFTService, MatchHistoryService } from '../../services';
+import { NFTItem, MatchHistoryItem, UserProfile, UserStats } from '../../types';
 import { DragScrollUtil, NavigationUtil, NavigationMixin, NavigationComponent, DataLoaderUtil } from '../../utils';
+import { Subscription } from 'rxjs';
 
 @Component({
-  selector: 'app-profile',
-  templateUrl: './profile.page.html',
-  styleUrls: ['./profile.page.scss'],
-  standalone: true,
+	selector: 'app-profile',
+	templateUrl: './profile.page.html',
+	styleUrls: ['./profile.page.scss'],
+	standalone: true,
 	imports: [
 		IonContent,
 		IonButton,
+		IonSkeletonText,
 		CommonModule,
 		FormsModule,
 		SideBarComponent,
@@ -26,7 +28,17 @@ export class ProfilePage implements OnInit, OnDestroy, NavigationComponent, Afte
 
 	@ViewChild('nftScrollContainer', { static: false }) nftScrollContainer!: ElementRef;
 
-	// Profile Data
+	// User Data
+	userProfile: UserProfile | null = null;
+	userStats: UserStats | null = null;
+
+	// Loading States
+	isLoadingProfile = true;
+	isLoadingStats = true;
+	isLoadingNFTs = true;
+	isLoadingMatches = true;
+
+	// Legacy Profile Data (for backward compatibility)
 	profileName: string = '';
 	profileUsername: string = '';
 	profileRank: string = '';
@@ -42,6 +54,9 @@ export class ProfilePage implements OnInit, OnDestroy, NavigationComponent, Afte
 	nftCollection: NFTItem[] = [];
 	matchHistory: MatchHistoryItem[] = [];
 
+	// Subscriptions
+	private subscriptions: Subscription[] = [];
+
 	// Utilities
 	private dragScrollCleanup?: () => void;
 	private dataLoader = new DataLoaderUtil();
@@ -49,7 +64,10 @@ export class ProfilePage implements OnInit, OnDestroy, NavigationComponent, Afte
 	private activeCardCleanup?: () => void;
 
 	constructor(
-		private profileService: ProfileService,
+		private userProfileService: UserProfileService,
+		private userStatsService: UserStatsService,
+		private nftService: NFTService,
+		private matchHistoryService: MatchHistoryService,
 		private navigationUtil: NavigationUtil,
 		private elementRef: ElementRef
 	) {
@@ -57,7 +75,7 @@ export class ProfilePage implements OnInit, OnDestroy, NavigationComponent, Afte
 		this.navigationMethods = NavigationMixin.createNavigationMethods(this.navigationUtil);
 	}
 
-  ngOnInit() {
+	ngOnInit() {
 		this.loadProfileData();
 	}
 
@@ -87,6 +105,7 @@ export class ProfilePage implements OnInit, OnDestroy, NavigationComponent, Afte
 
 		// Cleanup data subscriptions
 		this.dataLoader.cleanup();
+		this.subscriptions.forEach(sub => sub.unsubscribe());
 
 		// Cleanup active card detection
 		if (this.activeCardCleanup) {
@@ -95,39 +114,69 @@ export class ProfilePage implements OnInit, OnDestroy, NavigationComponent, Afte
 	}
 
 	private loadProfileData(): void {
-		// Use the data loader utility to manage subscriptions
-		this.dataLoader.loadMultiple([
-			{
-				source$: this.profileService.getUserProfile(),
-				onSuccess: (profile) => {
-					this.profileName = profile.name;
-					this.profileUsername = profile.username;
-					this.profileRank = profile.rank;
-				}
+		// Load user profile
+		this.isLoadingProfile = true;
+		const profileSub = this.userProfileService.getUserProfile().subscribe({
+			next: (profile) => {
+				this.userProfile = profile;
+				this.profileName = profile.name;
+				this.profileUsername = profile.username;
+				this.profileRank = profile.rank;
+				this.isLoadingProfile = false;
 			},
-			{
-				source$: this.profileService.getUserStats(),
-				onSuccess: (stats) => {
-					this.statsWins = stats.wins;
-					this.statsLosses = stats.losses;
-					this.statsNFTs = stats.nfts;
-					this.statsStreak = stats.streak;
-					this.statsGames = stats.games;
-				}
-			},
-			{
-				source$: this.profileService.getNFTCollection(),
-				onSuccess: (nfts) => {
-					this.nftCollection = nfts;
-				}
-			},
-			{
-				source$: this.profileService.getMatchHistory(),
-				onSuccess: (matches) => {
-					this.matchHistory = matches;
-				}
+			error: (error) => {
+				console.error('Error loading user profile:', error);
+				this.isLoadingProfile = false;
 			}
-		]);
+		});
+		this.subscriptions.push(profileSub);
+
+		// Load user stats
+		this.isLoadingStats = true;
+		const statsSub = this.userStatsService.getUserStats().subscribe({
+			next: (stats) => {
+				this.userStats = stats;
+				this.statsWins = stats.wins;
+				this.statsLosses = stats.losses;
+				this.statsNFTs = stats.nfts;
+				this.statsStreak = stats.streak;
+				this.statsGames = stats.games;
+				this.isLoadingStats = false;
+			},
+			error: (error) => {
+				console.error('Error loading user stats:', error);
+				this.isLoadingStats = false;
+			}
+		});
+		this.subscriptions.push(statsSub);
+
+		// Load NFT collection
+		this.isLoadingNFTs = true;
+		const nftSub = this.nftService.getNFTCollection().subscribe({
+			next: (nfts) => {
+				this.nftCollection = nfts;
+				this.isLoadingNFTs = false;
+			},
+			error: (error) => {
+				console.error('Error loading NFT collection:', error);
+				this.isLoadingNFTs = false;
+			}
+		});
+		this.subscriptions.push(nftSub);
+
+		// Load match history
+		this.isLoadingMatches = true;
+		const matchesSub = this.matchHistoryService.getMatchHistory().subscribe({
+			next: (matches) => {
+				this.matchHistory = matches;
+				this.isLoadingMatches = false;
+			},
+			error: (error) => {
+				console.error('Error loading match history:', error);
+				this.isLoadingMatches = false;
+			}
+		});
+		this.subscriptions.push(matchesSub);
 	}
 
 	// Navigation Methods - Use the mixin methods
@@ -152,107 +201,87 @@ export class ProfilePage implements OnInit, OnDestroy, NavigationComponent, Afte
 		this.navigationMethods.openMenu();
 	}
 
-	// Profile Actions - Delegate to ProfileService
+	// Profile Actions - Call services directly
 	editProfile(): void {
-		this.profileService.editProfile();
+		console.log('Edit profile clicked');
+		// TODO: Navigate to edit profile page or show edit modal
 	}
 
 	viewPublicProfile(): void {
-		this.profileService.viewPublicProfile();
+		console.log('View public profile clicked');
+		// TODO: Navigate to public profile view
 	}
 
-	// Match History Actions - Delegate to ProfileService
+	// Match History Actions
 	viewOpponentProfile(opponentId: string): void {
-		this.profileService.viewOpponentProfile(opponentId);
+		console.log('Navigating to opponent profile:', opponentId);
+		// TODO: Navigate to opponent profile
 	}
 
-	/**
-	 * Sets up active card detection using scroll position for better reliability
-	 */
+	// Drag scroll and active card detection methods
 	private setupActiveCardDetection(): void {
-		// Only set up on mobile screen sizes
-		if (window.innerWidth >= 1024) return;
+		const container = this.elementRef.nativeElement.querySelector('.nft-scroll-container');
+		if (!container) return;
 
-		const container = this.elementRef.nativeElement.querySelector('.nft-scroll-container') as HTMLElement;
-		const cards = this.elementRef.nativeElement.querySelectorAll('.nft-card') as NodeListOf<HTMLElement>;
+		const cards = container.querySelectorAll('.nft-card');
+		if (cards.length === 0) return;
 
-		if (!container || !cards.length) {
-			return;
-		}
+		let activeIndex = 0;
 
-		// Function to update active card based on scroll position
 		const updateActiveCard = (): void => {
 			const containerRect = container.getBoundingClientRect();
 			const containerCenter = containerRect.left + containerRect.width / 2;
 
-			let closestCard: HTMLElement | undefined;
+			let closestIndex = 0;
 			let closestDistance = Infinity;
 
-			// Find the card closest to the center of the container
-			cards.forEach((card: HTMLElement) => {
+			cards.forEach((card: Element, index: number) => {
 				const cardRect = card.getBoundingClientRect();
 				const cardCenter = cardRect.left + cardRect.width / 2;
 				const distance = Math.abs(cardCenter - containerCenter);
 
 				if (distance < closestDistance) {
 					closestDistance = distance;
-					closestCard = card;
+					closestIndex = index;
 				}
 			});
 
-			// Remove active class from all cards
-			cards.forEach((card: HTMLElement) => {
-				card.classList.remove('active-card');
-			});
-
-			// Add active class to the closest card
-			if (closestCard) {
-				closestCard.classList.add('active-card');
+			if (closestIndex !== activeIndex) {
+				// Remove active class from previous card
+				cards[activeIndex]?.classList.remove('active');
+				// Add active class to new card
+				cards[closestIndex]?.classList.add('active');
+				activeIndex = closestIndex;
 			}
 		};
+
+		// Throttle the scroll handler for better performance
+		let scrollTimeout: NodeJS.Timeout;
+		const handleScroll = () => {
+			clearTimeout(scrollTimeout);
+			scrollTimeout = setTimeout(updateActiveCard, 50);
+		};
+
+		// Debounce the resize handler
+		let resizeTimeout: NodeJS.Timeout;
+		const handleResize = () => {
+			clearTimeout(resizeTimeout);
+			resizeTimeout = setTimeout(updateActiveCard, 100);
+		};
+
+		// Add event listeners
+		container.addEventListener('scroll', handleScroll, { passive: true });
+		window.addEventListener('resize', handleResize, { passive: true });
 
 		// Initial update
 		updateActiveCard();
-
-		// Listen for scroll events
-		let scrollTimeout: any;
-		const handleScroll = () => {
-			// Clear previous timeout
-			if (scrollTimeout) {
-				clearTimeout(scrollTimeout);
-			}
-
-			// Update immediately for smooth experience
-			updateActiveCard();
-
-			// Also update after scroll ends for accuracy
-			scrollTimeout = setTimeout(updateActiveCard, 150);
-		};
-
-		container.addEventListener('scroll', handleScroll, { passive: true });
-
-		// Listen for window resize to reinitialize
-		const handleResize = () => {
-			// Only reinitialize if still on mobile
-			if (window.innerWidth < 1024) {
-				setTimeout(updateActiveCard, 100);
-			} else {
-				// Remove all active classes on desktop
-				cards.forEach((card: HTMLElement) => {
-					card.classList.remove('active-card');
-				});
-			}
-		};
-
-		window.addEventListener('resize', handleResize);
 
 		// Store cleanup function
 		this.activeCardCleanup = () => {
 			container.removeEventListener('scroll', handleScroll);
 			window.removeEventListener('resize', handleResize);
-			if (scrollTimeout) {
-				clearTimeout(scrollTimeout);
-			}
+			clearTimeout(scrollTimeout);
+			clearTimeout(resizeTimeout);
 		};
 	}
 }
