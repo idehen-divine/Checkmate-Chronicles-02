@@ -1,25 +1,65 @@
-import { Component, ViewChild, AfterViewInit, Input } from '@angular/core';
-import { IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonPopover, IonContent, IonList, IonItem, IonIcon, IonLabel } from '@ionic/angular/standalone';
+import { Component, ViewChild, AfterViewInit, Input, OnInit, OnDestroy } from '@angular/core';
+import { IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonPopover, IonContent, IonList, IonItem, IonIcon, IonLabel, IonSkeletonText } from '@ionic/angular/standalone';
 import { Router } from '@angular/router';
-import { AuthService } from '../../../services';
+import { AuthService, UserProfileService } from '../../../services';
+import { UserProfile } from '../../../types';
+import { CommonModule } from '@angular/common';
+import { Subscription } from 'rxjs';
 
 @Component({
     selector: 'app-header-toolbar',
     templateUrl: './header-toolbar.component.html',
     styleUrls: ['./header-toolbar.component.scss'],
     standalone: true,
-    imports: [IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonPopover, IonContent, IonList, IonItem, IonIcon, IonLabel]
+    imports: [IonHeader, IonToolbar, IonTitle, IonButtons, IonButton, IonPopover, IonContent, IonList, IonItem, IonIcon, IonLabel, IonSkeletonText, CommonModule]
 })
-export class HeaderToolbarComponent implements AfterViewInit {
+export class HeaderToolbarComponent implements AfterViewInit, OnInit, OnDestroy {
 
     @Input() title: string = 'Checkmate Chronicles'; // Default title
     @ViewChild('profilePopover') profilePopover!: IonPopover;
     private viewInitialized = false;
+    private subscriptions: Subscription[] = [];
+
+    // User data
+    userProfile: UserProfile | null = null;
+    isLoadingProfile = true;
 
     constructor(
         private router: Router,
-        private authService: AuthService
+        private authService: AuthService,
+        private userProfileService: UserProfileService
     ) { }
+
+    ngOnInit() {
+        this.loadUserProfile();
+    }
+
+    ngOnDestroy() {
+        this.subscriptions.forEach(sub => sub.unsubscribe());
+    }
+
+    private loadUserProfile() {
+        this.isLoadingProfile = true;
+        const profileSub = this.userProfileService.getUserProfile().subscribe({
+            next: (profile) => {
+                this.userProfile = profile;
+                this.isLoadingProfile = false;
+            },
+            error: (error) => {
+                console.error('Error loading user profile:', error);
+                this.isLoadingProfile = false;
+                // Set default profile on error
+                this.userProfile = {
+                    name: 'Chess Player',
+                    username: 'player',
+                    email: undefined,
+                    rank: 'Beginner | Unranked',
+                    avatar: 'assets/images/profile-avatar.png'
+                };
+            }
+        });
+        this.subscriptions.push(profileSub);
+    }
 
     ngAfterViewInit() {
         this.viewInitialized = true;

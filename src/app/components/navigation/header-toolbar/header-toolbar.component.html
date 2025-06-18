@@ -7,7 +7,13 @@
             <ion-button fill="clear" class="profile-button" id="profile-trigger"
                 (click)="presentProfilePopover($event)">
                 <div class="profile-avatar">
-                    <img src="assets/images/profile-avatar.png" alt="Profile" />
+                    <ng-container *ngIf="isLoadingProfile">
+                        <ion-skeleton-text animated
+                            style="width: 40px; height: 40px; border-radius: 50%;"></ion-skeleton-text>
+                    </ng-container>
+                    <ng-container *ngIf="!isLoadingProfile && userProfile">
+                        <img [src]="userProfile.avatar" [alt]="userProfile.name" />
+                    </ng-container>
                 </div>
             </ion-button>
         </ion-buttons>
@@ -20,11 +26,26 @@
         <ion-content class="profile-popover-content">
             <div class="profile-header">
                 <div class="profile-avatar-large">
-                    <img src="assets/images/profile-avatar.png" alt="Profile" />
+                    <ng-container *ngIf="isLoadingProfile">
+                        <ion-skeleton-text animated
+                            style="width: 60px; height: 60px; border-radius: 50%;"></ion-skeleton-text>
+                    </ng-container>
+                    <ng-container *ngIf="!isLoadingProfile && userProfile">
+                        <img [src]="userProfile.avatar" [alt]="userProfile.name" />
+                    </ng-container>
                 </div>
                 <div class="profile-info">
-                    <div class="username">ChessMaster</div>
-                    <div class="email">player&#64;example.com</div>
+                    <ng-container *ngIf="isLoadingProfile">
+                        <div class="profile-info-skeleton">
+                            <ion-skeleton-text animated
+                                style="width: 120px; height: 20px; margin-bottom: 6px;"></ion-skeleton-text>
+                            <ion-skeleton-text animated style="width: 100px; height: 16px;"></ion-skeleton-text>
+                        </div>
+                    </ng-container>
+                    <ng-container *ngIf="!isLoadingProfile && userProfile">
+                        <div class="username">{{ userProfile.name }}</div>
+                        <div class="email">{{ userProfile.email || '@' + userProfile.username }}</div>
+                    </ng-container>
                 </div>
             </div>
             <ion-list>
@@ -32,9 +53,13 @@
                     <ion-icon src="assets/icons/chess-pawn.svg" slot="start"></ion-icon>
                     <ion-label>My Profile</ion-label>
                 </ion-item>
-                <ion-item button (click)="navigateFromPopover('wallet')">
+                <ion-item button (click)="navigateFromPopover('my-nfts')">
                     <ion-icon src="assets/icons/wallet.svg" slot="start"></ion-icon>
-                    <ion-label>Wallet</ion-label>
+                    <ion-label>My NFTs</ion-label>
+                </ion-item>
+                <ion-item button (click)="navigateFromPopover('settings')">
+                    <ion-icon src="assets/icons/settings.svg" slot="start"></ion-icon>
+                    <ion-label>Settings</ion-label>
                 </ion-item>
                 <ion-item button (click)="logout()">
                     <ion-icon src="assets/icons/settings.svg" slot="start"></ion-icon>
