@@ -2,4 +2,5 @@
 export * from './user.types';
 export * from './nft.types';
 export * from './match.types';
-export * from './database.types'; 
+export * from './database.types';
+export * from './game.types';
