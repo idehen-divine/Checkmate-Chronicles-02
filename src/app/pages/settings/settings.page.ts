@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AlertController } from '@ionic/angular';
@@ -6,7 +6,8 @@ import {
 	IonContent,
 	IonButton,
 	IonToggle,
-	IonIcon
+	IonIcon,
+	IonSkeletonText
 } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { addCircleOutline } from 'ionicons/icons';
@@ -14,7 +15,9 @@ import { SideBarComponent } from '../../components/navigation/side-bar/side-bar.
 import { BottomNavComponent } from '../../components/navigation/bottom-nav/bottom-nav.component';
 import { HeaderToolbarComponent } from '../../components/navigation/header-toolbar/header-toolbar.component';
 import { NavigationUtil, NavigationMixin, NavigationComponent } from '../../utils';
-import { ProfileService } from '../../services';
+import { UserProfileService, UserPreferencesService, AuthService } from '../../services';
+import { UserProfile } from '../../types';
+import { Subscription } from 'rxjs';
 
 @Component({
 	selector: 'app-settings',
@@ -26,6 +29,7 @@ import { ProfileService } from '../../services';
 		IonButton,
 		IonToggle,
 		IonIcon,
+		IonSkeletonText,
 		CommonModule,
 		FormsModule,
 		SideBarComponent,
@@ -33,10 +37,12 @@ import { ProfileService } from '../../services';
 		HeaderToolbarComponent
 	]
 })
-export class SettingsPage implements OnInit, NavigationComponent {
+export class SettingsPage implements OnInit, OnDestroy, NavigationComponent {
 
-	// Profile and assets
-	profileImage = "assets/images/profile-avatar.png";
+	// User data
+	userProfile: UserProfile | null = null;
+	isLoadingProfile = true;
+	private subscriptions: Subscription[] = [];
 
 	// Game preferences
 	soundsEnabled = true;
@@ -59,7 +65,9 @@ export class SettingsPage implements OnInit, NavigationComponent {
 	constructor(
 		private alertController: AlertController,
 		private navigationUtil: NavigationUtil,
-		private profileService: ProfileService
+		private userProfileService: UserProfileService,
+		private userPreferencesService: UserPreferencesService,
+		private authService: AuthService
 	) {
 		// Register icons
 		addIcons({
@@ -71,11 +79,39 @@ export class SettingsPage implements OnInit, NavigationComponent {
 	}
 
 	ngOnInit() {
+		this.loadUserData();
 		this.loadUserPreferences();
 	}
 
+	ngOnDestroy() {
+		this.subscriptions.forEach(sub => sub.unsubscribe());
+	}
+
+	private loadUserData() {
+		this.isLoadingProfile = true;
+		const profileSub = this.userProfileService.getUserProfile().subscribe({
+			next: (profile) => {
+				this.userProfile = profile;
+				this.isLoadingProfile = false;
+			},
+			error: (error) => {
+				console.error('Error loading user profile:', error);
+				this.isLoadingProfile = false;
+				// Set default profile on error
+				this.userProfile = {
+					name: 'Chess Player',
+					username: 'player',
+					email: undefined,
+					rank: 'Beginner | Unranked',
+					avatar: 'assets/images/profile-avatar.png'
+				};
+			}
+		});
+		this.subscriptions.push(profileSub);
+	}
+
 	private loadUserPreferences() {
-		this.profileService.getUserPreferences().subscribe({
+		const preferencesSub = this.userPreferencesService.getUserPreferences().subscribe({
 			next: (preferences) => {
 				this.soundsEnabled = preferences.sounds_enabled;
 				this.hintsEnabled = preferences.hints_enabled;
@@ -88,6 +124,7 @@ export class SettingsPage implements OnInit, NavigationComponent {
 				console.error('Error loading user preferences:', error);
 			}
 		});
+		this.subscriptions.push(preferencesSub);
 	}
 
 	private async updatePreferences() {
@@ -100,7 +137,7 @@ export class SettingsPage implements OnInit, NavigationComponent {
 			announcements_enabled: this.announcementsEnabled
 		};
 
-		const result = await this.profileService.updateUserPreferences(preferences);
+		const result = await this.userPreferencesService.updateUserPreferences(preferences);
 		if (!result.success) {
 			console.error('Failed to update preferences:', result.error);
 			// Optionally show an error message to the user
@@ -196,23 +233,32 @@ export class SettingsPage implements OnInit, NavigationComponent {
 	async confirmDeleteAccount() {
 		const alert = await this.alertController.create({
 			header: 'Delete Account',
-			message: 'Are you sure you want to delete your account? This action cannot be undone.',
+			subHeader: 'Are you sure?',
+			message: 'This action cannot be undone. All your data will be permanently deleted.',
 			buttons: [
 				{
 					text: 'Cancel',
-					role: 'cancel'
+					role: 'cancel',
+					cssClass: 'secondary',
+					handler: () => {
+						console.log('Delete account cancelled');
+					}
 				},
 				{
 					text: 'Delete',
-					role: 'destructive',
+					cssClass: 'danger',
 					handler: () => {
-						// Handle account deletion
-						console.log('Account deletion confirmed');
+						this.deleteAccount();
 					}
 				}
 			]
 		});
 
 		await alert.present();
+	}
+
+	private deleteAccount() {
+		console.log('Account deletion confirmed');
+		// TODO: Implement account deletion logic
 	}
 }

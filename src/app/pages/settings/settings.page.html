@@ -17,11 +17,25 @@
 
 					<div class="profile-section">
 						<div class="profile-info">
-							<img [src]="profileImage" alt="Profile" class="profile-avatar">
-							<div class="profile-details">
-								<h3>Ethan Carter</h3>
-								<p class="username">&#64;ethancarter</p>
-							</div>
+							<ng-container *ngIf="isLoadingProfile">
+								<div class="profile-skeleton-container">
+									<ion-skeleton-text animated
+										style="width: 60px; height: 60px; border-radius: 50%; margin-right: 16px;"></ion-skeleton-text>
+									<div class="profile-details-skeleton">
+										<ion-skeleton-text animated
+											style="width: 140px; height: 24px; margin-bottom: 8px;"></ion-skeleton-text>
+										<ion-skeleton-text animated
+											style="width: 100px; height: 16px;"></ion-skeleton-text>
+									</div>
+								</div>
+							</ng-container>
+							<ng-container *ngIf="!isLoadingProfile && userProfile">
+								<img [src]="userProfile.avatar" [alt]="userProfile.name" class="profile-avatar">
+								<div class="profile-details">
+									<h3>{{ userProfile.name }}</h3>
+									<p class="username">&#64;{{ userProfile.username }}</p>
+								</div>
+							</ng-container>
 						</div>
 					</div>
 				</div>
@@ -36,17 +50,20 @@
 					<div class="preferences-section">
 						<div class="preference-item">
 							<span>Sounds</span>
-							<ion-toggle [(ngModel)]="soundsEnabled" (ionChange)="onSoundsToggle()" class="custom-toggle"></ion-toggle>
+							<ion-toggle [(ngModel)]="soundsEnabled" (ionChange)="onSoundsToggle()"
+								class="custom-toggle"></ion-toggle>
 						</div>
 
 						<div class="preference-item">
 							<span>Hints</span>
-							<ion-toggle [(ngModel)]="hintsEnabled" (ionChange)="onHintsToggle()" class="custom-toggle"></ion-toggle>
+							<ion-toggle [(ngModel)]="hintsEnabled" (ionChange)="onHintsToggle()"
+								class="custom-toggle"></ion-toggle>
 						</div>
 
 						<div class="preference-item">
 							<span>Legal Moves</span>
-							<ion-toggle [(ngModel)]="legalMovesEnabled" (ionChange)="onLegalMovesToggle()" class="custom-toggle"></ion-toggle>
+							<ion-toggle [(ngModel)]="legalMovesEnabled" (ionChange)="onLegalMovesToggle()"
+								class="custom-toggle"></ion-toggle>
 						</div>
 					</div>
 
@@ -58,17 +75,20 @@
 					<div class="notifications-section">
 						<div class="preference-item">
 							<span>Game Invites</span>
-							<ion-toggle [(ngModel)]="gameInvitesEnabled" (ionChange)="onGameInvitesToggle()" class="custom-toggle"></ion-toggle>
+							<ion-toggle [(ngModel)]="gameInvitesEnabled" (ionChange)="onGameInvitesToggle()"
+								class="custom-toggle"></ion-toggle>
 						</div>
 
 						<div class="preference-item">
 							<span>NFT Mints</span>
-							<ion-toggle [(ngModel)]="nftMintsEnabled" (ionChange)="onNftMintsToggle()" class="custom-toggle"></ion-toggle>
+							<ion-toggle [(ngModel)]="nftMintsEnabled" (ionChange)="onNftMintsToggle()"
+								class="custom-toggle"></ion-toggle>
 						</div>
 
 						<div class="preference-item">
 							<span>Announcements</span>
-							<ion-toggle [(ngModel)]="announcementsEnabled" (ionChange)="onAnnouncementsToggle()" class="custom-toggle"></ion-toggle>
+							<ion-toggle [(ngModel)]="announcementsEnabled" (ionChange)="onAnnouncementsToggle()"
+								class="custom-toggle"></ion-toggle>
 						</div>
 					</div>
 				</div>
