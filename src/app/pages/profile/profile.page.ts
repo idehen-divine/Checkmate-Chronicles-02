@@ -16,11 +16,11 @@ import { Subscription } from 'rxjs';
 	standalone: true,
 	imports: [
 		IonContent,
-		IonButton,
+		// IonButton,
 		IonSkeletonText,
 		CommonModule,
 		FormsModule,
-		SideBarComponent,
+		// SideBarComponent,
 		BottomNavComponent
 	]
 })
