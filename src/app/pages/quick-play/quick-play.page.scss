@@ -1,0 +1,371 @@
+.lobbies-container {
+  padding: 16px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.section-header {
+  margin-bottom: 20px;
+  
+  h2 {
+    margin: 0 0 8px;
+    color: var(--ion-color-primary);
+    font-weight: 600;
+    font-size: 1.3rem;
+  }
+  
+  p {
+    margin: 0;
+    color: var(--ion-color-medium);
+    font-size: 0.9rem;
+  }
+}
+
+.create-lobby-section {
+  background: var(--ion-color-light);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 32px;
+  border: 1px solid var(--ion-color-step-100);
+}
+
+.lobby-form {
+  .create-button {
+    margin-top: 20px;
+    --border-radius: 12px;
+    height: 48px;
+    font-weight: 600;
+  }
+  
+  ion-item {
+    --inner-padding-end: 0;
+    --padding-start: 0;
+    --padding-end: 0;
+    margin-bottom: 12px;
+  }
+}
+
+.available-lobbies-section {
+  margin-bottom: 24px;
+}
+
+.lobby-item {
+  --inner-padding-end: 16px;
+  --inner-padding-start: 16px;
+  --padding-start: 0;
+  --padding-end: 0;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--ion-color-step-100);
+  
+  ion-avatar {
+    width: 48px;
+    height: 48px;
+  }
+  
+  ion-label {
+    h2 {
+      margin: 0 0 6px;
+      font-weight: 600;
+      color: var(--ion-color-dark);
+    }
+  }
+}
+
+.lobby-details {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+  
+  .host-name {
+    color: var(--ion-color-primary);
+    font-weight: 500;
+  }
+  
+  .time-limit {
+    background: var(--ion-color-warning);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  
+  .elo-rating {
+    color: var(--ion-color-medium);
+    font-size: 0.85rem;
+  }
+}
+
+.lobby-features {
+  display: flex;
+  gap: 8px;
+  
+  ion-chip {
+    font-size: 0.75rem;
+    height: 24px;
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--ion-color-medium);
+  
+  ion-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+  }
+  
+  h3 {
+    margin: 0 0 8px;
+    color: var(--ion-color-medium-shade);
+  }
+  
+  p {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+}
+
+// Game Lobby Styles
+.quick-play-lobby {
+  padding: 16px;
+  max-width: 600px;
+  margin: 0 auto;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.game-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--ion-color-step-100);
+  margin-bottom: 24px;
+  
+  ion-button {
+    --color: var(--ion-color-medium);
+    
+    &:hover {
+      --color: var(--ion-color-primary);
+    }
+  }
+}
+
+.game-info {
+  text-align: center;
+  margin-bottom: 32px;
+  
+  h1 {
+    margin: 0 0 16px;
+    color: var(--ion-color-primary);
+    font-weight: 700;
+    font-size: 1.8rem;
+  }
+  
+  .game-settings {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+}
+
+.players-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin-bottom: 32px;
+}
+
+.player-card {
+  background: var(--ion-color-light);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  border: 2px solid var(--ion-color-step-100);
+  transition: border-color 0.3s ease;
+  
+  &.current-player {
+    border-left-color: var(--ion-color-primary);
+  }
+  
+  &.opponent-player {
+    border-right-color: var(--ion-color-secondary);
+  }
+  
+  .player-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 12px;
+    
+    ion-avatar {
+      width: 60px;
+      height: 60px;
+    }
+    
+    .player-details {
+      flex: 1;
+      
+      h3 {
+        margin: 0 0 4px;
+        font-weight: 600;
+        color: var(--ion-color-dark);
+      }
+      
+      p {
+        margin: 0 0 6px;
+        color: var(--ion-color-medium);
+        font-size: 0.9rem;
+      }
+      
+      .player-label {
+        background: var(--ion-color-primary);
+        color: white;
+        padding: 2px 8px;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        display: inline-block;
+      }
+    }
+  }
+  
+  .player-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    ion-icon {
+      font-size: 20px;
+    }
+    
+    span {
+      font-weight: 500;
+      color: var(--ion-color-medium);
+      
+      &.ready {
+        color: var(--ion-color-success);
+      }
+    }
+  }
+  
+  .waiting-opponent {
+    text-align: center;
+    padding: 20px;
+    color: var(--ion-color-medium);
+    
+    ion-spinner {
+      margin-bottom: 16px;
+    }
+    
+    h3 {
+      margin: 0 0 8px;
+      color: var(--ion-color-medium-shade);
+    }
+    
+    p {
+      margin: 0;
+      font-size: 0.9rem;
+    }
+  }
+}
+
+.vs-divider {
+  text-align: center;
+  margin: 8px 0;
+  
+  span {
+    background: var(--ion-color-primary);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 1.1rem;
+  }
+}
+
+.game-status {
+  text-align: center;
+  margin-bottom: 24px;
+  
+  .status-message {
+    background: var(--ion-color-step-50);
+    border-radius: 12px;
+    padding: 16px;
+    
+    h3 {
+      margin: 0;
+      color: var(--ion-color-primary);
+      font-weight: 600;
+    }
+  }
+}
+
+.ready-section {
+  text-align: center;
+  
+  ion-button {
+    --border-radius: 12px;
+    height: 48px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  
+  .ready-note {
+    margin: 8px 0 0;
+    color: var(--ion-color-medium);
+    font-size: 0.9rem;
+    font-style: italic;
+  }
+}
+
+// Mobile responsiveness
+@media (max-width: 768px) {
+  .lobbies-container {
+    padding: 12px;
+  }
+  
+  .game-lobby-container {
+    padding: 12px;
+  }
+  
+  .player-card .player-info {
+    gap: 12px;
+    
+    ion-avatar {
+      width: 50px;
+      height: 50px;
+    }
+  }
+  
+  .lobby-details {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
+
+// Dark mode adjustments
+@media (prefers-color-scheme: dark) {
+  .create-lobby-section,
+  .player-card {
+    background: var(--ion-color-step-50);
+    border-color: var(--ion-color-step-200);
+  }
+  
+  .lobby-item {
+    border-color: var(--ion-color-step-200);
+  }
+  
+  .game-status .status-message {
+    background: var(--ion-color-step-100);
+  }
+}

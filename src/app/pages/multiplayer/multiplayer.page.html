@@ -1,0 +1,182 @@
+<ion-content>
+    <app-header-toolbar title="Multiplayer Lobby">
+        <ion-button slot="end" fill="clear" (click)="refreshPlayers()" [disabled]="isMatchmaking">
+            <ion-icon name="refresh" slot="icon-only"></ion-icon>
+        </ion-button>
+    </app-header-toolbar>
+
+    <div class="multiplayer-container">
+        <!-- Matchmaking Section -->
+        <div class="matchmaking-section">
+            <div class="section-header">
+                <ion-icon name="game-controller"></ion-icon>
+                <h2>Quick Match</h2>
+            </div>
+
+            <!-- Time Control Selection -->
+            <div class="time-control-selection" *ngIf="!isMatchmaking">
+                <h3>Select Time Control</h3>
+                <div class="time-control-grid">
+                    <ion-button *ngFor="let option of timeControlOptions"
+                        [fill]="selectedTimeControl.initial_time === option.initial_time && selectedTimeControl.increment === option.increment ? 'solid' : 'outline'"
+                        size="small" (click)="selectTimeControl(option)">
+                        {{ option.label }}
+                    </ion-button>
+                </div>
+            </div>
+
+            <!-- Matchmaking Controls -->
+            <div class="matchmaking-controls">
+                <ion-button *ngIf="!isMatchmaking" expand="block" color="primary" size="large"
+                    (click)="startMatchmaking()">
+                    <ion-icon name="game-controller" slot="start"></ion-icon>
+                    Find Opponent
+                </ion-button>
+
+                <div *ngIf="isMatchmaking" class="matchmaking-active">
+                    <div class="matchmaking-spinner">
+                        <ion-spinner name="crescent" color="primary"></ion-spinner>
+                    </div>
+                    <h3>Finding opponent...</h3>
+                    <p>{{ formatTime(matchmakingTime) }}</p>
+                    <ion-button fill="outline" color="medium" (click)="stopMatchmaking()">
+                        <ion-icon name="close" slot="start"></ion-icon>
+                        Cancel
+                    </ion-button>
+                </div>
+            </div>
+        </div>
+
+        <ion-segment value="players" class="lobby-tabs">
+            <ion-segment-button value="players">
+                <ion-icon name="people"></ion-icon>
+                <ion-label>Online Players ({{ onlinePlayers.length }})</ion-label>
+            </ion-segment-button>
+            <ion-segment-button value="invitations">
+                <ion-icon name="person-add"></ion-icon>
+                <ion-label>Invitations ({{ receivedInvitations.length + sentInvitations.length }})</ion-label>
+            </ion-segment-button>
+        </ion-segment>
+
+        <!-- Online Players List -->
+        <div class="players-section">
+            <div class="section-header">
+                <ion-icon name="people"></ion-icon>
+                <h2>Online Players</h2>
+            </div>
+
+            <div *ngIf="onlinePlayers.length === 0" class="empty-state">
+                <ion-icon name="people" color="medium"></ion-icon>
+                <h3>No players online</h3>
+                <p>Try again later or invite friends to play!</p>
+            </div>
+
+            <ion-list *ngIf="onlinePlayers.length > 0">
+                <ion-item *ngFor="let player of onlinePlayers" class="player-item">
+                    <ion-avatar slot="start">
+                        <img [src]="player.avatar || '/assets/images/profile-avatar.png'" alt="Player avatar">
+                    </ion-avatar>
+
+                    <ion-label>
+                        <h2>{{ player.username }}</h2>
+                        <div class="player-stats">
+                            <span class="rating">{{ player.current_elo }} ELO</span>
+                            <span class="rank" *ngIf="player.current_rank_name">{{ player.current_rank_name }}</span>
+                            <span class="rating-diff">{{ getRatingDifference(player.current_elo) }}</span>
+                        </div>
+                        <p class="game-record">
+                            {{ player.games_played }} games •
+                            {{ player.wins }}W {{ player.losses }}L {{ player.draws }}D
+                        </p>
+                    </ion-label>
+
+                    <ion-button slot="end" fill="outline" size="small" (click)="sendInvitation(player)"
+                        [disabled]="isMatchmaking">
+                        <ion-icon name="person-add" slot="start"></ion-icon>
+                        Challenge
+                    </ion-button>
+                </ion-item>
+            </ion-list>
+        </div>
+
+        <!-- Invitations Section -->
+        <div class="invitations-section">
+            <!-- Received Invitations -->
+            <div *ngIf="receivedInvitations.length > 0" class="received-invitations">
+                <div class="section-header">
+                    <ion-icon name="checkmark"></ion-icon>
+                    <h2>Received Invitations</h2>
+                </div>
+
+                <ion-list>
+                    <ion-item *ngFor="let invitation of receivedInvitations" class="invitation-item received">
+                        <ion-avatar slot="start">
+                            <img [src]="invitation.from_user.avatar || '/assets/images/profile-avatar.png'"
+                                alt="Player avatar">
+                        </ion-avatar>
+
+                        <ion-label>
+                            <h2>{{ invitation.from_user.username }}</h2>
+                            <p>
+                                <ion-icon name="time" color="medium"></ion-icon>
+                                {{ invitation.time_control.initial_time / 60 }}+{{ invitation.time_control.increment }}
+                                min
+                            </p>
+                            <p class="invitation-time">{{ invitation.created_at | date:'short' }}</p>
+                        </ion-label>
+
+                        <div slot="end" class="invitation-buttons">
+                            <ion-button fill="solid" color="success" size="small"
+                                (click)="acceptInvitation(invitation)">
+                                <ion-icon name="checkmark" slot="icon-only"></ion-icon>
+                            </ion-button>
+                            <ion-button fill="solid" color="danger" size="small"
+                                (click)="declineInvitation(invitation)">
+                                <ion-icon name="close" slot="icon-only"></ion-icon>
+                            </ion-button>
+                        </div>
+                    </ion-item>
+                </ion-list>
+            </div>
+
+            <!-- Sent Invitations -->
+            <div *ngIf="sentInvitations.length > 0" class="sent-invitations">
+                <div class="section-header">
+                    <ion-icon name="time"></ion-icon>
+                    <h2>Sent Invitations</h2>
+                </div>
+
+                <ion-list>
+                    <ion-item *ngFor="let invitation of sentInvitations" class="invitation-item sent">
+                        <ion-avatar slot="start">
+                            <img [src]="invitation.to_user.avatar || '/assets/images/profile-avatar.png'"
+                                alt="Player avatar">
+                        </ion-avatar>
+
+                        <ion-label>
+                            <h2>{{ invitation.to_user.username }}</h2>
+                            <p>
+                                <ion-icon name="time" color="medium"></ion-icon>
+                                {{ invitation.time_control.initial_time / 60 }}+{{ invitation.time_control.increment }}
+                                min
+                            </p>
+                            <p class="invitation-time">Sent {{ invitation.created_at | date:'short' }}</p>
+                        </ion-label>
+
+                        <ion-button slot="end" fill="outline" color="medium" size="small"
+                            (click)="cancelInvitation(invitation)">
+                            Cancel
+                        </ion-button>
+                    </ion-item>
+                </ion-list>
+            </div>
+
+            <!-- Empty State for Invitations -->
+            <div *ngIf="receivedInvitations.length === 0 && sentInvitations.length === 0" class="empty-state">
+                <ion-icon name="person-add" color="medium"></ion-icon>
+                <h3>No invitations</h3>
+                <p>Challenge other players to start a game!</p>
+            </div>
+        </div>
+    </div>
+</ion-content>
