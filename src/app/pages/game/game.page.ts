@@ -1,6 +1,5 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AlertController, ToastController } from '@ionic/angular';
 import { Chess } from 'chess.js';
 import { CommonModule } from '@angular/common';
 import { IonicModule } from '@ionic/angular';
@@ -17,6 +16,12 @@ import { HeaderToolbarComponent } from 'src/app/components/navigation/header-too
 import { GameToolbarComponent } from 'src/app/components/navigation/game-toolbar/game-toolbar.component';
 import { ReplayControlsComponent } from 'src/app/components/game/replay-controls/replay-controls.component';
 import { LiveGameMove, LiveGamePlayer } from '../../types/game.types';
+import { GameTimerService } from '../../services/game-timer.service';
+import { NotificationService } from '../../services/notification.service';
+import { ChessReplayService } from '../../services/chess-replay.service';
+import * as ChessBoardUtils from '../../utils/chess-board.util';
+import * as GameTimerUtils from '../../utils/game-timer.util';
+import { Subscription } from 'rxjs';
 
 @Component({
 	selector: 'app-game',
@@ -60,7 +65,6 @@ export class GamePage implements OnInit, OnDestroy {
 	};
 
 	currentPlayer: LiveGamePlayer;
-	timerInterval: any;
 
 	// Drag and drop properties
 	draggedPiece: { row: number; col: number; piece: string } | null = null;
@@ -69,14 +73,20 @@ export class GamePage implements OnInit, OnDestroy {
 	isReplayMode = false;
 	replayPosition = 0;
 	replayMoves: any[] = [];
-	originalGameState: any = null; constructor(
+	originalGameState: any = null;
+
+	private subscriptions: Subscription[] = [];
+
+	constructor(
 		private route: ActivatedRoute,
 		private router: Router,
-		private alertController: AlertController,
-		private toastController: ToastController,
-		private changeDetectorRef: ChangeDetectorRef
+		private changeDetectorRef: ChangeDetectorRef,
+		private gameTimerService: GameTimerService,
+		private notificationService: NotificationService,
+		private chessReplayService: ChessReplayService
 	) {
-		this.currentPlayer = this.player1;        // Add icons for ion-icon to work
+		this.currentPlayer = this.player1;
+		// Add icons for ion-icon to work
 		addIcons({
 			'time-outline': timeOutline,
 			'close': close,
@@ -86,7 +96,6 @@ export class GamePage implements OnInit, OnDestroy {
 			'play-forward': playForward
 		});
 	}
-
 	ngOnInit() {
 		this.initializeBoard();
 		this.startTimer();
@@ -97,35 +106,33 @@ export class GamePage implements OnInit, OnDestroy {
 				this.gameId = `Game #${params['id']}`;
 			}
 		});
+
+		// Subscribe to replay state changes
+		const replaySubscription = this.chessReplayService.replayState$.subscribe(replayState => {
+			this.isReplayMode = replayState.isReplayMode;
+			this.replayPosition = replayState.position;
+			this.replayMoves = replayState.moves;
+			this.originalGameState = replayState.originalGameState;
+
+			if (this.isReplayMode) {
+				this.replayToPosition(replayState.position);
+			}
+		});
+
+		this.subscriptions.push(replaySubscription);
 	}
 
 	ngOnDestroy() {
-		if (this.timerInterval) {
-			clearInterval(this.timerInterval);
-		}
+		this.gameTimerService.stopTimer();
+		this.subscriptions.forEach(sub => sub.unsubscribe());
 	}
 
 	initializeBoard() {
 		this.updateBoard();
 		this.updateGameHistory();
 	}
-
 	updateBoard() {
-		const fen = this.chess.board();
-		this.board = fen.map(row =>
-			row.map(square => {
-				if (!square) return null;
-
-				// Map chess.js pieces to symbols
-				const pieceMap: { [key: string]: string } = {
-					'p': '♟', 'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', // black pieces
-					'P': '♙', 'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔'  // white pieces
-				};
-
-				const pieceKey = square.color === 'w' ? square.type.toUpperCase() : square.type.toLowerCase();
-				return pieceMap[pieceKey] || square.type;
-			})
-		);
+		this.board = ChessBoardUtils.createBoardFromFen(this.chess);
 	} updateGameHistory() {
 		const history = this.chess.history({ verbose: true });
 
@@ -141,15 +148,12 @@ export class GamePage implements OnInit, OnDestroy {
 			}));
 		}
 	}
-
 	getSquareNotation(row: number, col: number): string {
-		const files = 'abcdefgh';
-		const ranks = '87654321'; // reversed because board is displayed from white's perspective
-		return files[col] + ranks[row];
+		return ChessBoardUtils.getSquareNotation(row, col);
 	}
 
 	isSquareLight(row: number, col: number): boolean {
-		return (row + col) % 2 === 0;
+		return ChessBoardUtils.isSquareLight(row, col);
 	}
 
 	isSquareSelected(row: number, col: number): boolean {
@@ -192,9 +196,8 @@ export class GamePage implements OnInit, OnDestroy {
 		// Can only select pieces of the current player
 		return !!(piece && this.isCurrentPlayerPiece(row, col));
 	}
-
 	isDangerTime(player: LiveGamePlayer): boolean {
-		return player.timeRemaining <= 60 && this.currentPlayer === player && !this.gameEnded;
+		return GameTimerUtils.isDangerTime(player.timeRemaining) && this.currentPlayer === player && !this.gameEnded;
 	}
 	onSquareClick(row: number, col: number) {
 		// Prevent any board interaction if game has ended or in replay mode
@@ -214,10 +217,9 @@ export class GamePage implements OnInit, OnDestroy {
 			// Deselect if clicking on empty square or opponent's piece
 			this.selectedSquare = null;
 			this.possibleMoves = [];
-			this.showToast('Move cancelled');
+			this.notificationService.showGameMessage('MOVE_CANCELLED');
 		}
-	}
-	selectSquare(row: number, col: number) {
+	} selectSquare(row: number, col: number) {
 		// Prevent selection if game has ended or in replay mode
 		if (this.gameEnded || this.isReplayMode) {
 			return;
@@ -233,16 +235,11 @@ export class GamePage implements OnInit, OnDestroy {
 				verbose: false
 			}).map(move => {
 				// Extract destination square from move notation
-				const match = move.match(/[a-h][1-8]/g);
-				return match ? match[match.length - 1] : '';
+				return ChessBoardUtils.extractDestinationSquare(move);
 			}).filter(Boolean);
 
 			// Provide feedback about available moves
-			if (this.possibleMoves.length === 0) {
-				this.showToast('No valid moves available for this piece');
-			} else {
-				this.showToast(`${this.possibleMoves.length} moves available`);
-			}
+			this.notificationService.showAvailableMovesToast(this.possibleMoves.length);
 		}
 	} makeMove(from: string, to: string) {
 		// Prevent moves if game has ended or in replay mode
@@ -272,79 +269,67 @@ export class GamePage implements OnInit, OnDestroy {
 				this.changeDetectorRef.detectChanges();
 
 				// Switch current player
-				this.currentPlayer = this.currentPlayer === this.player1 ? this.player2 : this.player1;
-
-				// Provide move feedback
-				this.showToast(`Move: ${move.san}`);
+				this.currentPlayer = this.currentPlayer === this.player1 ? this.player2 : this.player1;				// Provide move feedback
+				this.notificationService.showMoveToast(move.san);
 
 				// Check game status
 				this.checkGameStatus();
 			}
 		} catch (error) {
 			console.error('Invalid move:', error);
-			this.showToast('Invalid move!');
+			this.notificationService.showGameMessage('INVALID_MOVE');
 		}
-	}
-	checkGameStatus() {
+	} checkGameStatus() {
 		if (this.gameEnded) return; // Prevent multiple dialogs
 
 		if (this.chess.isCheckmate()) {
 			this.gameStatus = 'checkmate';
 			this.gameEnded = true;
-			clearInterval(this.timerInterval);
+			this.gameTimerService.stopTimer();
 			// Clear game state and force UI update
 			this.selectedSquare = null;
 			this.possibleMoves = [];
 			this.changeDetectorRef.detectChanges();
-			this.showGameEndDialog('Checkmate!', `${this.chess.turn() === 'w' ? 'Black' : 'White'} wins!`);
+			this.notificationService.showGameEndAlert(
+				'Checkmate!',
+				`${this.chess.turn() === 'w' ? 'Black' : 'White'} wins!`,
+				() => this.router.navigate(['/game']),
+				() => this.router.navigate(['/game'])
+			);
 		} else if (this.chess.isStalemate()) {
 			this.gameStatus = 'stalemate';
 			this.gameEnded = true;
-			clearInterval(this.timerInterval);
+			this.gameTimerService.stopTimer();
 			// Clear game state and force UI update
 			this.selectedSquare = null;
 			this.possibleMoves = [];
 			this.changeDetectorRef.detectChanges();
-			this.showGameEndDialog('Stalemate!', 'The game is a draw.');
+			this.notificationService.showGameEndAlert(
+				'Stalemate!',
+				'The game is a draw.',
+				() => this.router.navigate(['/game']),
+				() => this.router.navigate(['/game'])
+			);
 		} else if (this.chess.isDraw()) {
 			this.gameStatus = 'draw';
 			this.gameEnded = true;
-			clearInterval(this.timerInterval);
+			this.gameTimerService.stopTimer();
 			// Clear game state and force UI update
 			this.selectedSquare = null;
 			this.possibleMoves = [];
 			this.changeDetectorRef.detectChanges();
-			this.showGameEndDialog('Draw!', 'The game ended in a draw.');
+			this.notificationService.showGameEndAlert(
+				'Draw!',
+				'The game ended in a draw.',
+				() => this.router.navigate(['/game']),
+				() => this.router.navigate(['/game'])
+			);
 		} else if (this.chess.isCheck()) {
 			this.gameStatus = 'check';
 		} else {
 			this.gameStatus = 'active';
 		}
 	}
-
-	async showGameEndDialog(header: string, message: string) {
-		const alert = await this.alertController.create({
-			header,
-			message,
-			buttons: [
-				{
-					text: 'View Game History',
-					handler: () => {
-						this.router.navigate(['/game']);
-
-					}
-				},
-				{
-					text: 'Back to Lobby',
-					handler: () => {
-						this.router.navigate(['/game']);
-					}
-				}
-			]
-		});
-		await alert.present();
-	}
-
 	resetGame() {
 		this.chess.reset();
 		this.initializeBoard();
@@ -370,62 +355,51 @@ export class GamePage implements OnInit, OnDestroy {
 	}
 
 	startTimer() {
-		this.timerInterval = setInterval(() => {
-			if (this.gameEnded) {
-				// Stop timer if game has ended
-				clearInterval(this.timerInterval);
-				return;
-			}
+		this.gameTimerService.initializeTimer(
+			this.player1.timeRemaining,
+			this.player2.timeRemaining,
+			'player1'
+		);
+		this.gameTimerService.startTimer();
 
-			if (this.currentPlayer.timeRemaining > 0) {
-				this.currentPlayer.timeRemaining--;
-			} else {
-				// Time's up! Stop the timer and show dialog
-				clearInterval(this.timerInterval);
+		// Subscribe to timer state to update player times
+		const timerSubscription = this.gameTimerService.timerState$.subscribe(state => {
+			this.player1.timeRemaining = state.player1Time;
+			this.player2.timeRemaining = state.player2Time;
+
+			if (state.timeExpired && state.expiredPlayer) {
 				this.gameEnded = true;
 				this.gameStatus = 'timeout';
-				this.showGameEndDialog('Time\'s Up!', `${this.currentPlayer.username} ran out of time!`);
+				const winner = state.expiredPlayer === 'player1' ? this.player2 : this.player1;
+				this.notificationService.showGameEndAlert(
+					'Time\'s Up!',
+					`${state.expiredPlayer === 'player1' ? this.player1.username : this.player2.username} ran out of time!`,
+					() => this.router.navigate(['/game']),
+					() => this.router.navigate(['/game'])
+				);
 			}
-		}, 1000);
+		});
+
+		this.subscriptions.push(timerSubscription);
 	}
 
 	formatTime(seconds: number): string {
-		const minutes = Math.floor(seconds / 60);
-		const remainingSeconds = seconds % 60;
-		return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+		return GameTimerUtils.formatTime(seconds);
 	}
 
 	getMoveNumber(index: number): number {
-		return Math.floor(index / 2) + 1;
+		return GameTimerUtils.getMoveNumber(index);
+	}
+	async onChatClick() {
+		this.notificationService.showGameMessage('CHAT_COMING_SOON');
 	}
 
-	async onChatClick() {
-		const toast = await this.toastController.create({
-			message: 'Chat functionality coming soon!',
-			duration: 2000,
-			position: 'top',
-			color: 'primary'
+	async onAbortClick() {
+		this.notificationService.showAbortGameAlert(() => {
+			this.abortGame();
 		});
-		await toast.present();
-	} async onAbortClick() {
-		const alert = await this.alertController.create({
-			header: 'Abort Game',
-			message: 'Are you sure you want to abort this game? This action cannot be undone.',
-			buttons: [
-				{
-					text: 'Cancel',
-					role: 'cancel'
-				},
-				{
-					text: 'Abort Game',
-					handler: () => {
-						this.abortGame();
-					}
-				}
-			]
-		});
-		await alert.present();
 	}
+
 	abortGame() {
 		// Set the aborting player's time to 0 and end the game
 		this.currentPlayer.timeRemaining = 0;
@@ -433,9 +407,7 @@ export class GamePage implements OnInit, OnDestroy {
 		this.gameStatus = 'aborted';
 
 		// Clear the timer
-		if (this.timerInterval) {
-			clearInterval(this.timerInterval);
-		}
+		this.gameTimerService.stopTimer();
 
 		// Clear any selected squares and possible moves
 		this.selectedSquare = null;
@@ -453,48 +425,28 @@ export class GamePage implements OnInit, OnDestroy {
 		const loser = this.currentPlayer;
 
 		// Show game end message
-		this.showGameEndDialog(`Game Aborted`, `${winner.username} wins by abandonment. ${loser.username} forfeited the game.`);
-	}
-	async onHintClick() {
+		this.notificationService.showGameEndAlert(
+			'Game Aborted',
+			`${winner.username} wins by abandonment. ${loser.username} forfeited the game.`,
+			() => this.router.navigate(['/game']),
+			() => this.router.navigate(['/game'])
+		);
+	} async onHintClick() {
 		if (this.gameEnded) {
-			const toast = await this.toastController.create({
-				message: 'Hints are not available when the game is over!',
-				duration: 2000,
-				position: 'top',
-				color: 'warning'
-			});
-			await toast.present();
+			this.notificationService.showGameMessage('HINTS_NOT_AVAILABLE');
 			return;
 		}
 
 		const possibleMoves = this.chess.moves();
 		if (possibleMoves.length > 0) {
 			const randomMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
-			const toast = await this.toastController.create({
-				message: `Consider: ${randomMove}`,
-				duration: 3000,
-				position: 'top',
-				color: 'success'
-			});
-			await toast.present();
+			this.notificationService.showHintToast(randomMove);
 		} else {
-			const toast = await this.toastController.create({
-				message: 'No moves available!',
-				duration: 2000,
-				position: 'top',
-				color: 'warning'
-			});
-			await toast.present();
+			this.notificationService.showToast('No moves available!', 'warning');
 		}
 	} async onUndoClick() {
 		if (this.gameHistory.length === 0) {
-			const toast = await this.toastController.create({
-				message: 'No moves to undo!',
-				duration: 2000,
-				position: 'top',
-				color: 'warning'
-			});
-			await toast.present();
+			this.notificationService.showGameMessage('NO_MOVES_TO_UNDO');
 			return;
 		}
 
@@ -504,13 +456,7 @@ export class GamePage implements OnInit, OnDestroy {
 
 		// Don't allow undo if the next player has already undone a move
 		if (lastMove.playerId !== this.currentPlayer.id && this.hasUndoneMove) {
-			const toast = await this.toastController.create({
-				message: 'Cannot undo: Next player has already made changes!',
-				duration: 2000,
-				position: 'top',
-				color: 'warning'
-			});
-			await toast.present();
+			this.notificationService.showToast('Cannot undo: Next player has already made changes!', 'warning');
 			return;
 		}
 
@@ -543,23 +489,10 @@ export class GamePage implements OnInit, OnDestroy {
 		// Force change detection to update button states immediately
 		this.changeDetectorRef.detectChanges();
 
-		const toast = await this.toastController.create({
-			message: 'Move undone successfully!',
-			duration: 1500,
-			position: 'top',
-			color: 'success'
-		});
-		await toast.present();
-	}
-	async onRedoClick() {
+		this.notificationService.showGameMessage('UNDO_SUCCESS');
+	} async onRedoClick() {
 		if (!this.hasUndoneMove || this.undoneHistory.length === 0) {
-			const toast = await this.toastController.create({
-				message: 'No moves to redo!',
-				duration: 2000,
-				position: 'top',
-				color: 'warning'
-			});
-			await toast.present();
+			this.notificationService.showGameMessage('NO_MOVES_TO_REDO');
 			return;
 		}
 
@@ -593,24 +526,12 @@ export class GamePage implements OnInit, OnDestroy {
 					// Force change detection to update button states immediately
 					this.changeDetectorRef.detectChanges();
 
-					const toast = await this.toastController.create({
-						message: 'Move redone successfully!',
-						duration: 1500,
-						position: 'top',
-						color: 'success'
-					});
-					await toast.present();
+					this.notificationService.showGameMessage('REDO_SUCCESS');
 				}
 			} catch (error) {
 				// If redo fails, put the move back in undone history
 				this.undoneHistory.push(moveToRedo);
-				const toast = await this.toastController.create({
-					message: 'Unable to redo move!',
-					duration: 2000,
-					position: 'top',
-					color: 'danger'
-				});
-				await toast.present();
+				this.notificationService.showToast('Unable to redo move!', 'error');
 			}
 		}
 	}
@@ -637,23 +558,16 @@ export class GamePage implements OnInit, OnDestroy {
 	}	// Replay functionality methods
 	enterReplayMode() {
 		if (!this.gameEnded) {
-			this.showToast('Replay is only available after the game ends!');
+			this.notificationService.showGameMessage('REPLAY_ONLY_AFTER_GAME');
 			return;
 		}
 
 		if (this.gameHistory.length === 0) {
-			this.showToast('No moves to replay!');
+			this.notificationService.showGameMessage('NO_MOVES_TO_REPLAY');
 			return;
 		}
 
-		this.isReplayMode = true;
-		this.replayPosition = 0;
-		this.replayMoves = [...this.gameHistory]; // Create a snapshot of the game history
-		this.originalGameState = this.chess.fen(); // Save current state
-
-		// Reset to starting position
-		this.chess.reset();
-		this.updateBoard();
+		this.chessReplayService.enterReplayMode(this.gameHistory, this.chess.fen());
 
 		// Clear any selected squares or highlights during replay
 		this.selectedSquare = null;
@@ -662,18 +576,18 @@ export class GamePage implements OnInit, OnDestroy {
 		// Force change detection to update UI immediately
 		this.changeDetectorRef.detectChanges();
 
-		this.showToast('Entered replay mode - Use controls to navigate');
+		this.notificationService.showGameMessage('ENTERED_REPLAY_MODE');
 	}
+
 	exitReplayMode() {
 		if (!this.isReplayMode) return;
 
-		this.isReplayMode = false;
-		this.replayPosition = 0;
-		this.replayMoves = [];
+		this.chessReplayService.exitReplayMode();
 
 		// Restore original game state
-		if (this.originalGameState) {
-			this.chess.load(this.originalGameState);
+		const replayState = this.chessReplayService.getCurrentState();
+		if (replayState.originalGameState) {
+			this.chess.load(replayState.originalGameState);
 			this.updateBoard();
 		}
 
@@ -684,9 +598,8 @@ export class GamePage implements OnInit, OnDestroy {
 		// Force change detection to update UI immediately
 		this.changeDetectorRef.detectChanges();
 
-		this.showToast('Exited replay mode');
-	}
-	replayToPosition(position: number) {
+		this.notificationService.showGameMessage('EXITED_REPLAY_MODE');
+	} replayToPosition(position: number) {
 		if (!this.isReplayMode || position < 0 || position > this.replayMoves.length) {
 			return;
 		}
@@ -710,45 +623,33 @@ export class GamePage implements OnInit, OnDestroy {
 			}
 		}
 
-		this.replayPosition = position;
 		this.updateBoard();
 
 		// Force change detection to update UI immediately
 		this.changeDetectorRef.detectChanges();
 
-		// Show current position info
-		if (position === 0) {
-			this.showToast('Start position');
-		} else if (position === this.replayMoves.length) {
-			this.showToast('Final position');
-		} else {
-			const currentMove = this.replayMoves[position - 1];
-			this.showToast(`Move ${position}: ${currentMove.notation}`);
-		}
+		// Show current position info using notification service
+		this.notificationService.showReplayPositionToast(position, this.replayMoves);
 	}
 
 	replayNextMove() {
 		if (!this.isReplayMode) return;
-		if (this.replayPosition < this.replayMoves.length) {
-			this.replayToPosition(this.replayPosition + 1);
-		}
+		this.chessReplayService.nextMove();
 	}
 
 	replayPreviousMove() {
 		if (!this.isReplayMode) return;
-		if (this.replayPosition > 0) {
-			this.replayToPosition(this.replayPosition - 1);
-		}
+		this.chessReplayService.previousMove();
 	}
 
 	replayToStart() {
 		if (!this.isReplayMode) return;
-		this.replayToPosition(0);
+		this.chessReplayService.goToStart();
 	}
 
 	replayToEnd() {
 		if (!this.isReplayMode) return;
-		this.replayToPosition(this.replayMoves.length);
+		this.chessReplayService.goToEnd();
 	}
 
 	// Computed properties for replay controls
@@ -759,14 +660,6 @@ export class GamePage implements OnInit, OnDestroy {
 	get canReplayNext(): boolean {
 		return this.isReplayMode && this.replayPosition < this.replayMoves.length;
 	}
-
-	async showToast(message: string) {
-		const toast = await this.toastController.create({
-			message: message,
-			duration: 2000,
-			position: 'top',
-			color: 'primary'
-		});
-		toast.present();
-	}
+	// This method is no longer needed as we use the notification service directly
+	// All toast calls have been replaced with this.notificationService.showToast() or specific message methods
 }

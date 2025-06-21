@@ -4,10 +4,10 @@ import { IonicModule } from '@ionic/angular';
 import { addIcons } from 'ionicons';
 import {
     close,
-    playBack,
-    playSkipBack,
-    playSkipForward,
-    playForward
+    playBackOutline,
+    playSkipBackOutline,
+    playSkipForwardOutline,
+    playForwardOutline
 } from 'ionicons/icons';
 
 @Component({
@@ -33,10 +33,10 @@ export class ReplayControlsComponent {
         // Add icons for ion-icon to work
         addIcons({
             'close': close,
-            'play-back': playBack,
-            'play-skip-back': playSkipBack,
-            'play-skip-forward': playSkipForward,
-            'play-forward': playForward
+            'play-back-outline': playBackOutline,
+            'play-skip-back-outline': playSkipBackOutline,
+            'play-skip-forward-outline': playSkipForwardOutline,
+            'play-forward-outline': playForwardOutline
         });
     }
 
