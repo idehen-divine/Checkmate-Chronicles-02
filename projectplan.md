@@ -40,16 +40,16 @@ Checkmate Chronicles is a blockchain-powered chess application that combines tra
 - `moves` (id, game_id, player_id, move_notation, timestamp)
 - `nft_checkmates` (id, game_id, winner_id, metadata, minted_at, algorand_asset_id)
 
-### 🔄 Checkpoint 3: Chess Game Engine
+### ✅ Checkpoint 3: Chess Game Engine
 **Goal**: Implement core chess functionality
 
 #### Tasks:
-- [ ] Research and integrate chess.js library for game logic
-- [ ] Create chess board component with drag-and-drop
-- [ ] Implement move validation and game state management
-- [ ] Add chess notation recording (PGN format)
-- [ ] Create game timer functionality
-- [ ] Implement checkmate/stalemate detection
+- [x] Research and integrate chess.js library for game logic
+- [x] Create chess board component with drag-and-drop
+- [x] Implement move validation and game state management
+- [x] Add chess notation recording (PGN format)
+- [x] Create game timer functionality
+- [x] Implement checkmate/stalemate detection
 - [ ] Add game replay functionality
 - [ ] Create spectator mode for live games
 
@@ -194,82 +194,6 @@ Checkmate Chronicles is a blockchain-powered chess application that combines tra
 - [ ] Add legal terms and privacy policy
 - [ ] Create launch marketing materials
 - [ ] Set up production deployment pipeline
-
----
-
-## Checkpoint 2 TODO List
-
-### ✅ Setup Tasks
-- [x] Add Supabase dependency using Yarn
-- [x] Create environment configuration
-- [x] Set up Supabase client
-- [x] Configure authentication providers
-
-### ✅ Database Schema Tasks
-- [x] Create users table with RLS
-- [x] Create games table with relationships
-- [x] Create moves table for game history
-- [x] Create chat and message tables
-- [x] Create nft_checkmates table
-- [x] Set up database policies
-
-### ✅ Authentication Tasks
-- [x] Implement Google OAuth
-- [x] Implement Apple OAuth
-- [x] Create auth service
-- [x] Add auth guards
-- [x] Update auth page functionality
-
-### ✅ User Management Tasks
-- [x] Create user profile service
-- [x] Implement user settings
-- [x] Add wallet address management
-- [x] Create user dashboard updates
-
----
-
-## Implementation Review
-
-### Changes Made for User Profiles and Settings:
-
-1. **Enhanced SupabaseService** (`src/app/services/supabase.service.ts`):
-   - Added user preferences methods (`updateUserPreferences`)
-   - Enhanced user profile management
-   - Added proper error handling
-
-2. **Updated ProfileService** (`src/app/services/profile.service.ts`):
-   - Connected to real Supabase data instead of mock data
-   - Added `getUserPreferences()` method
-   - Added `updateUserPreferences()` method
-   - Implemented proper error handling and fallbacks
-
-3. **Enhanced Database Types** (`src/app/types/database.types.ts`):
-   - Added user preference fields to the users table type
-   - Updated all preference boolean fields (sounds_enabled, hints_enabled, etc.)
-
-4. **Updated Settings Page** (`src/app/pages/settings/settings.page.ts`):
-   - Connected to ProfileService for real data
-   - Added `loadUserPreferences()` method
-   - Added `updatePreferences()` method
-   - Connected all toggle events to update preferences in database
-   - Maintained existing UI functionality
-
-5. **Updated Settings Template** (`src/app/pages/settings/settings.page.html`):
-   - Connected all toggles to proper change handlers
-   - Maintained existing styling and layout
-
-### Key Features Implemented:
-- ✅ Real-time user preference loading from Supabase
-- ✅ Automatic preference saving when toggles are changed
-- ✅ Proper error handling and fallbacks
-- ✅ Integration with existing authentication system
-- ✅ Maintained existing UI/UX design
-
-### Next Steps:
-Ready to proceed with **Checkpoint 3: Chess Game Engine** which includes:
-- Research and integrate chess.js library for game logic
-- Create chess board component with drag-and-drop
-- Implement move validation and game state management
 
 ---
 
