@@ -10,26 +10,24 @@ ion-content {
     padding-bottom: 95px;
     padding-top: 50px;
 
-    // Large screen layout
-    @media (min-width: 1024px) {
-        display: block;
-        padding-bottom: 0;
-        max-width: none;
-        margin: 0;
-        min-height: 100vh;
-    }
+        // Large screen layout
+        @media (min-width: 1024px) {
+            display: block;
+            padding-bottom: 0;
+            max-width: none;
+            margin: 0;
+            min-height: 100vh;
+        }
 }
-
-
-
 
 .main-content {
     display: contents;
+    padding-top: 0;
+    padding-bottom: 0;
 
     @media (min-width: 1024px) {
         display: grid;
         padding: 40px;
-        padding-top: 0;
         margin-left: 280px;
         overflow-y: auto;
         grid-template-columns: 2fr 1fr;
