@@ -15,7 +15,7 @@ import { Subscription } from 'rxjs';
 })
 export class HeaderToolbarComponent implements AfterViewInit, OnInit, OnDestroy {
 
-    @Input() title: string = 'Checkmate Chronicles'; // Default title
+    @Input() title: string|undefined|null = 'Checkmate Chronicles'; // Default title
     @ViewChild('profilePopover') profilePopover!: IonPopover;
     private viewInitialized = false;
     private subscriptions: Subscription[] = [];
