@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AlertController, ToastController } from '@ionic/angular';
 import { Chess } from 'chess.js';
@@ -69,12 +69,12 @@ export class GamePage implements OnInit, OnDestroy {
 	isReplayMode = false;
 	replayPosition = 0;
 	replayMoves: any[] = [];
-	originalGameState: any = null;
-	constructor(
+	originalGameState: any = null; constructor(
 		private route: ActivatedRoute,
 		private router: Router,
 		private alertController: AlertController,
-		private toastController: ToastController
+		private toastController: ToastController,
+		private changeDetectorRef: ChangeDetectorRef
 	) {
 		this.currentPlayer = this.player1;        // Add icons for ion-icon to work
 		addIcons({
@@ -128,14 +128,18 @@ export class GamePage implements OnInit, OnDestroy {
 		);
 	} updateGameHistory() {
 		const history = this.chess.history({ verbose: true });
-		this.gameHistory = history.map((move, index) => ({
-			notation: move.san,
-			timestamp: new Date(),
-			from: move.from,
-			to: move.to,
-			playerId: index % 2 === 0 ? this.player1.id : this.player2.id,
-			promotion: move.promotion
-		}));
+
+		// Only update if the history has actually changed to avoid overwriting our custom history
+		if (history.length !== this.gameHistory.length) {
+			this.gameHistory = history.map((move, index) => ({
+				notation: move.san,
+				timestamp: new Date(),
+				from: move.from,
+				to: move.to,
+				playerId: index % 2 === 0 ? this.player1.id : this.player2.id,
+				promotion: move.promotion
+			}));
+		}
 	}
 
 	getSquareNotation(row: number, col: number): string {
@@ -176,8 +180,12 @@ export class GamePage implements OnInit, OnDestroy {
 		return (this.chess.turn() === 'w' && piece.color === 'w') ||
 			(this.chess.turn() === 'b' && piece.color === 'b');
 	}
-
 	canSelectSquare(row: number, col: number): boolean {
+		// Cannot select squares if game has ended or in replay mode
+		if (this.gameEnded || this.isReplayMode) {
+			return false;
+		}
+
 		const square = this.getSquareNotation(row, col);
 		const piece = this.chess.get(square as any);
 
@@ -188,8 +196,12 @@ export class GamePage implements OnInit, OnDestroy {
 	isDangerTime(player: LiveGamePlayer): boolean {
 		return player.timeRemaining <= 60 && this.currentPlayer === player && !this.gameEnded;
 	}
-
 	onSquareClick(row: number, col: number) {
+		// Prevent any board interaction if game has ended or in replay mode
+		if (this.gameEnded || this.isReplayMode) {
+			return;
+		}
+
 		const square = this.getSquareNotation(row, col);
 
 		if (this.selectedSquare && this.possibleMoves.includes(square)) {
@@ -205,8 +217,12 @@ export class GamePage implements OnInit, OnDestroy {
 			this.showToast('Move cancelled');
 		}
 	}
-
 	selectSquare(row: number, col: number) {
+		// Prevent selection if game has ended or in replay mode
+		if (this.gameEnded || this.isReplayMode) {
+			return;
+		}
+
 		const square = this.getSquareNotation(row, col);
 		const piece = this.chess.get(square as any);
 
@@ -228,9 +244,12 @@ export class GamePage implements OnInit, OnDestroy {
 				this.showToast(`${this.possibleMoves.length} moves available`);
 			}
 		}
-	}
+	} makeMove(from: string, to: string) {
+		// Prevent moves if game has ended or in replay mode
+		if (this.gameEnded || this.isReplayMode) {
+			return;
+		}
 
-	makeMove(from: string, to: string) {
 		try {
 			const move = this.chess.move({
 				from: from as any,
@@ -239,10 +258,18 @@ export class GamePage implements OnInit, OnDestroy {
 			});
 
 			if (move) {
+				// Clear undone history when a new move is made
+				// This prevents redo after a new move is played
+				this.undoneHistory = [];
+				this.hasUndoneMove = false;
+
 				this.updateBoard();
 				this.updateGameHistory();
 				this.selectedSquare = null;
 				this.possibleMoves = [];
+
+				// Force change detection to update button states immediately
+				this.changeDetectorRef.detectChanges();
 
 				// Switch current player
 				this.currentPlayer = this.currentPlayer === this.player1 ? this.player2 : this.player1;
@@ -258,7 +285,6 @@ export class GamePage implements OnInit, OnDestroy {
 			this.showToast('Invalid move!');
 		}
 	}
-
 	checkGameStatus() {
 		if (this.gameEnded) return; // Prevent multiple dialogs
 
@@ -266,16 +292,28 @@ export class GamePage implements OnInit, OnDestroy {
 			this.gameStatus = 'checkmate';
 			this.gameEnded = true;
 			clearInterval(this.timerInterval);
+			// Clear game state and force UI update
+			this.selectedSquare = null;
+			this.possibleMoves = [];
+			this.changeDetectorRef.detectChanges();
 			this.showGameEndDialog('Checkmate!', `${this.chess.turn() === 'w' ? 'Black' : 'White'} wins!`);
 		} else if (this.chess.isStalemate()) {
 			this.gameStatus = 'stalemate';
 			this.gameEnded = true;
 			clearInterval(this.timerInterval);
+			// Clear game state and force UI update
+			this.selectedSquare = null;
+			this.possibleMoves = [];
+			this.changeDetectorRef.detectChanges();
 			this.showGameEndDialog('Stalemate!', 'The game is a draw.');
 		} else if (this.chess.isDraw()) {
 			this.gameStatus = 'draw';
 			this.gameEnded = true;
 			clearInterval(this.timerInterval);
+			// Clear game state and force UI update
+			this.selectedSquare = null;
+			this.possibleMoves = [];
+			this.changeDetectorRef.detectChanges();
 			this.showGameEndDialog('Draw!', 'The game ended in a draw.');
 		} else if (this.chess.isCheck()) {
 			this.gameStatus = 'check';
@@ -316,9 +354,16 @@ export class GamePage implements OnInit, OnDestroy {
 		this.possibleMoves = [];
 		this.currentPlayer = this.player1;
 
+		// Reset undo/redo state
+		this.hasUndoneMove = false;
+		this.undoneHistory = [];
+
 		// Reset timers to original values
 		this.player1.timeRemaining = 900; // 15 minutes
 		this.player2.timeRemaining = 900; // 15 minutes
+
+		// Force change detection to update button states immediately
+		this.changeDetectorRef.detectChanges();
 
 		// Restart the timer
 		this.startTimer();
@@ -381,7 +426,6 @@ export class GamePage implements OnInit, OnDestroy {
 		});
 		await alert.present();
 	}
-
 	abortGame() {
 		// Set the aborting player's time to 0 and end the game
 		this.currentPlayer.timeRemaining = 0;
@@ -392,6 +436,17 @@ export class GamePage implements OnInit, OnDestroy {
 		if (this.timerInterval) {
 			clearInterval(this.timerInterval);
 		}
+
+		// Clear any selected squares and possible moves
+		this.selectedSquare = null;
+		this.possibleMoves = [];
+
+		// Reset undo/redo state
+		this.hasUndoneMove = false;
+		this.undoneHistory = [];
+
+		// Force change detection to update button states immediately
+		this.changeDetectorRef.detectChanges();
 
 		// Determine winner (the player who didn't abort)
 		const winner = this.currentPlayer === this.player1 ? this.player2 : this.player1;
@@ -445,16 +500,30 @@ export class GamePage implements OnInit, OnDestroy {
 		this.undoneHistory.push(lastMove);
 		this.hasUndoneMove = true;
 
+		// Remove the move from game history
+		this.gameHistory.pop();
+
 		// If undoing opponent's move, switch back to them
 		if (lastMove.playerId !== this.currentPlayer.id) {
 			this.currentPlayer = this.currentPlayer === this.player1 ? this.player2 : this.player1;
 		}
 
+		// Undo the move in chess.js
 		this.chess.undo();
-		this.gameHistory.pop();
 		this.updateBoard();
 		this.selectedSquare = null;
 		this.possibleMoves = [];
+
+		// Reset game status if needed
+		if (this.gameEnded) {
+			this.gameEnded = false;
+			this.gameStatus = 'active';
+			// Restart timer if game was ended
+			this.startTimer();
+		}
+
+		// Force change detection to update button states immediately
+		this.changeDetectorRef.detectChanges();
 
 		const toast = await this.toastController.create({
 			message: 'Move undone successfully!',
@@ -464,7 +533,6 @@ export class GamePage implements OnInit, OnDestroy {
 		});
 		await toast.present();
 	}
-
 	async onRedoClick() {
 		if (!this.hasUndoneMove || this.undoneHistory.length === 0) {
 			const toast = await this.toastController.create({
@@ -495,10 +563,17 @@ export class GamePage implements OnInit, OnDestroy {
 					// After redo, switch to the next player so they can play
 					this.currentPlayer = this.currentPlayer === this.player1 ? this.player2 : this.player1;
 
-					this.hasUndoneMove = false; // Reset undo flag after redo
+					// Only reset hasUndoneMove if we've redone all undone moves
+					if (this.undoneHistory.length === 0) {
+						this.hasUndoneMove = false;
+					}
+
 					this.updateBoard();
 					this.selectedSquare = null;
 					this.possibleMoves = [];
+
+					// Force change detection to update button states immediately
+					this.changeDetectorRef.detectChanges();
 
 					const toast = await this.toastController.create({
 						message: 'Move redone successfully!',
@@ -541,8 +616,7 @@ export class GamePage implements OnInit, OnDestroy {
 	// Computed property for redo availability
 	get canRedo(): boolean {
 		return this.hasUndoneMove && this.undoneHistory.length > 0 && !this.gameEnded;
-	}
-	// Replay functionality methods
+	}	// Replay functionality methods
 	enterReplayMode() {
 		if (!this.gameEnded) {
 			this.showToast('Replay is only available after the game ends!');
@@ -556,16 +630,25 @@ export class GamePage implements OnInit, OnDestroy {
 
 		this.isReplayMode = true;
 		this.replayPosition = 0;
-		this.replayMoves = [...this.gameHistory];
-		this.originalGameState = this.chess.fen();
+		this.replayMoves = [...this.gameHistory]; // Create a snapshot of the game history
+		this.originalGameState = this.chess.fen(); // Save current state
 
 		// Reset to starting position
 		this.chess.reset();
 		this.updateBoard();
-		this.showToast('Entered replay mode');
-	}
 
+		// Clear any selected squares or highlights during replay
+		this.selectedSquare = null;
+		this.possibleMoves = [];
+
+		// Force change detection to update UI immediately
+		this.changeDetectorRef.detectChanges();
+
+		this.showToast('Entered replay mode - Use controls to navigate');
+	}
 	exitReplayMode() {
+		if (!this.isReplayMode) return;
+
 		this.isReplayMode = false;
 		this.replayPosition = 0;
 		this.replayMoves = [];
@@ -576,9 +659,15 @@ export class GamePage implements OnInit, OnDestroy {
 			this.updateBoard();
 		}
 
+		// Clear any replay-related UI state
+		this.selectedSquare = null;
+		this.possibleMoves = [];
+
+		// Force change detection to update UI immediately
+		this.changeDetectorRef.detectChanges();
+
 		this.showToast('Exited replay mode');
 	}
-
 	replayToPosition(position: number) {
 		if (!this.isReplayMode || position < 0 || position > this.replayMoves.length) {
 			return;
@@ -594,28 +683,63 @@ export class GamePage implements OnInit, OnDestroy {
 				this.chess.move({
 					from: move.from,
 					to: move.to,
-					promotion: move.promotion
+					promotion: move.promotion || 'q'
 				});
 			} catch (error) {
-				console.error('Error replaying move:', error);
-				break;
+				console.error('Error replaying move:', error, move);
+				// Try to continue with the next move
+				continue;
 			}
 		}
 
 		this.replayPosition = position;
 		this.updateBoard();
+
+		// Force change detection to update UI immediately
+		this.changeDetectorRef.detectChanges();
+
+		// Show current position info
+		if (position === 0) {
+			this.showToast('Start position');
+		} else if (position === this.replayMoves.length) {
+			this.showToast('Final position');
+		} else {
+			const currentMove = this.replayMoves[position - 1];
+			this.showToast(`Move ${position}: ${currentMove.notation}`);
+		}
 	}
 
 	replayNextMove() {
+		if (!this.isReplayMode) return;
 		if (this.replayPosition < this.replayMoves.length) {
 			this.replayToPosition(this.replayPosition + 1);
 		}
 	}
 
 	replayPreviousMove() {
+		if (!this.isReplayMode) return;
 		if (this.replayPosition > 0) {
 			this.replayToPosition(this.replayPosition - 1);
 		}
+	}
+
+	replayToStart() {
+		if (!this.isReplayMode) return;
+		this.replayToPosition(0);
+	}
+
+	replayToEnd() {
+		if (!this.isReplayMode) return;
+		this.replayToPosition(this.replayMoves.length);
+	}
+
+	// Computed properties for replay controls
+	get canReplayPrevious(): boolean {
+		return this.isReplayMode && this.replayPosition > 0;
+	}
+
+	get canReplayNext(): boolean {
+		return this.isReplayMode && this.replayPosition < this.replayMoves.length;
 	}
 
 	async showToast(message: string) {
