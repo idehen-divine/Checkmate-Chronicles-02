@@ -1,0 +1,53 @@
+.game-action-bar {
+	background: var(--app-background-light-shade-alt);
+	border-top: 1px solid var(--app-background-light-shade);
+	padding: 9px 16px calc(12px + env(safe-area-inset-bottom)) 16px;
+	display: flex;
+	gap: 8px;
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	z-index: 1000;
+	box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+
+	.action-btn {
+		flex: 1;
+		background: transparent;
+		border: none;
+		color: var(--app-mute-color);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 4px;
+		padding: 0;
+		cursor: pointer;
+		transition: color 0.2s ease;
+
+		ion-icon {
+			font-size: 24px;
+
+			&.flip-horizontal {
+				transform: scaleX(-1);
+			}
+		}
+
+		span {
+			font-family: "Space Grotesk", sans-serif;
+			font-size: 12px;
+			font-weight: 500;
+			line-height: 18px;
+		}
+
+		&:hover {
+			color: var(--app-white);
+		}
+
+		&[disabled] {
+			color: #4a4458;
+			opacity: 0.5;
+			cursor: not-allowed;
+		}
+	}
+}

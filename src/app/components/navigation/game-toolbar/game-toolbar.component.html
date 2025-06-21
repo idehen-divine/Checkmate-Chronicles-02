@@ -1,0 +1,24 @@
+<div class="game-action-bar"> <button class="action-btn" (click)="onChatClick()">
+		<ion-icon name="chatbubble-ellipses-outline"></ion-icon>
+		<span>Chat</span>
+	</button> <button class="action-btn" (click)="onAbortClick()" [disabled]="gameEnded">
+		<ion-icon name="close-circle-outline"></ion-icon>
+		<span>Abort</span>
+	</button>
+	<button class="action-btn" (click)="onHintClick()">
+		<ion-icon name="bulb-outline"></ion-icon>
+		<span>Hint</span>
+	</button>
+	<button class="action-btn" (click)="onUndoClick()" [disabled]="!canUndo">
+		<ion-icon name="reload-outline" class="flip-horizontal"></ion-icon>
+		<span>Undo</span>
+	</button>
+	<button class="action-btn" (click)="onRedoClick()" [disabled]="!canRedo">
+		<ion-icon name="reload-outline"></ion-icon>
+		<span>Redo</span>
+	</button>
+	<button class="action-btn" (click)="onReplayClick()" [disabled]="!gameEnded">
+		<ion-icon name="play-circle-outline"></ion-icon>
+		<span>Replay</span>
+	</button>
+</div>
