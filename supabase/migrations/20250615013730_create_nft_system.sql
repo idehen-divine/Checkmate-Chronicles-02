@@ -7,6 +7,9 @@
 2. Security
 - Enable RLS on nft_checkmates table
 - Add policies for NFT management
+
+3. Indexes
+- Performance indexes for NFT queries
 */
 
 -- Create nft_checkmates table
@@ -18,6 +21,9 @@ CREATE TABLE IF NOT EXISTS nft_checkmates (
     minted_at timestamptz DEFAULT now(),
     algorand_asset_id text
 );
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_nft_checkmates_winner ON nft_checkmates (winner_id);
 
 -- Enable Row Level Security
 ALTER TABLE nft_checkmates ENABLE ROW LEVEL SECURITY;

@@ -1,0 +1,663 @@
+ion-content {
+    --background: var(--app-background);
+    --color: var(--app-white);
+    --overflow: hidden;
+}
+
+.not-found-container {
+    min-height: 100vh;
+    height: 100vh;
+    background-color: var(--app-background);
+    font-family: 'Space Grotesk', sans-serif;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    // Enhanced responsive design for all screen sizes
+    @media (min-width: 768px) {
+        padding: 0 40px;
+    }
+
+    @media (min-width: 1024px) {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 60px;
+    }
+
+    @media (min-width: 1440px) {
+        max-width: 1400px;
+        padding: 0 80px;
+    }
+
+    @media (min-width: 1920px) {
+        max-width: 1600px;
+        padding: 0 100px;
+    }
+}
+
+// Glitched Background Grid - Enhanced for large screens
+.background-grid {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    opacity: 0.1;
+    z-index: 1;
+
+    @media (min-width: 1024px) {
+        grid-template-columns: repeat(12, 1fr);
+        grid-template-rows: repeat(8, 1fr);
+    }
+
+    @media (min-width: 1440px) {
+        grid-template-columns: repeat(16, 1fr);
+        grid-template-rows: repeat(10, 1fr);
+    }
+
+    .grid-tile {
+        border: 1px solid var(--app-mute-color);
+        background: transparent;
+        transition: all 0.3s ease;
+
+        &.glitched {
+            background: linear-gradient(45deg,
+                    rgba(115, 64, 235, 0.1) 0%,
+                    rgba(255, 0, 0, 0.05) 25%,
+                    rgba(0, 255, 0, 0.05) 50%,
+                    rgba(0, 0, 255, 0.05) 75%,
+                    rgba(115, 64, 235, 0.1) 100%);
+            animation: gridGlitch 4s ease-in-out infinite;
+            border-color: var(--app-primary);
+        }
+    }
+}
+
+// Floating Particles - Enhanced for large screens
+.particles {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+
+    .particle {
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        background: var(--app-primary);
+        border-radius: 50%;
+        opacity: 0.6;
+        animation: floatParticle 8s linear infinite;
+
+        @media (min-width: 1024px) {
+            width: 6px;
+            height: 6px;
+        }
+
+        @media (min-width: 1440px) {
+            width: 8px;
+            height: 8px;
+        }
+
+        &:nth-child(1) {
+            top: 20%;
+            left: 10%;
+            animation-delay: 0s;
+            animation-duration: 6s;
+        }
+
+        &:nth-child(2) {
+            top: 60%;
+            left: 80%;
+            animation-delay: 2s;
+            animation-duration: 8s;
+        }
+
+        &:nth-child(3) {
+            top: 80%;
+            left: 20%;
+            animation-delay: 4s;
+            animation-duration: 7s;
+        }
+
+        &:nth-child(4) {
+            top: 30%;
+            left: 70%;
+            animation-delay: 1s;
+            animation-duration: 9s;
+        }
+
+        &:nth-child(5) {
+            top: 50%;
+            left: 50%;
+            animation-delay: 3s;
+            animation-duration: 5s;
+        }
+    }
+}
+
+// Main Content Wrapper - Enhanced responsive design
+.content-wrapper {
+    position: relative;
+    z-index: 3;
+    text-align: center;
+    padding: 20px;
+    width: 100%;
+    max-width: 500px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 40px;
+
+    @media (min-width: 768px) {
+        max-width: 600px;
+        padding: 40px;
+        gap: 48px;
+    }
+
+    @media (min-width: 1024px) {
+        max-width: 800px;
+        padding: 60px;
+        gap: 56px;
+    }
+
+    @media (min-width: 1440px) {
+        max-width: 1000px;
+        padding: 80px;
+        gap: 64px;
+    }
+
+    @media (min-width: 1920px) {
+        max-width: 1200px;
+        gap: 72px;
+    }
+}
+
+// 404 Error Section with Glitch Effect - Enhanced for large screens
+.error-section {
+    position: relative;
+
+    .error-code {
+        font-family: 'Space Grotesk', monospace;
+        font-weight: 900;
+        font-size: 120px;
+        line-height: 1;
+        color: var(--app-primary);
+        margin: 0;
+        text-shadow:
+            0 0 20px rgba(115, 64, 235, 0.5),
+            0 0 40px rgba(115, 64, 235, 0.3),
+            0 0 60px rgba(115, 64, 235, 0.2);
+        animation: glowPulse 3s ease-in-out infinite alternate;
+
+        @media (min-width: 768px) {
+            font-size: 160px;
+        }
+
+        @media (min-width: 1024px) {
+            font-size: 220px;
+        }
+
+        @media (min-width: 1440px) {
+            font-size: 280px;
+        }
+
+        @media (min-width: 1920px) {
+            font-size: 320px;
+        }
+    }
+
+    .glitch-overlay {
+        position: absolute;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        font-family: 'Space Grotesk', monospace;
+        font-weight: 900;
+        font-size: 120px;
+        line-height: 1;
+        color: rgba(255, 0, 0, 0.7);
+        margin: 0;
+        animation: glitchMove 0.3s ease-in-out infinite;
+        z-index: -1;
+
+        @media (min-width: 768px) {
+            font-size: 160px;
+        }
+
+        @media (min-width: 1024px) {
+            font-size: 220px;
+        }
+
+        @media (min-width: 1440px) {
+            font-size: 280px;
+        }
+
+        @media (min-width: 1920px) {
+            font-size: 320px;
+        }
+    }
+}
+
+// Message Section - Enhanced typography scaling
+.message-section {
+    .error-title {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 700;
+        font-size: 28px;
+        line-height: 36px;
+        color: var(--app-white);
+        margin: 0 0 12px 0;
+        letter-spacing: -0.5px;
+
+        @media (min-width: 768px) {
+            font-size: 32px;
+            line-height: 40px;
+        }
+
+        @media (min-width: 1024px) {
+            font-size: 42px;
+            line-height: 52px;
+            margin-bottom: 16px;
+        }
+
+        @media (min-width: 1440px) {
+            font-size: 48px;
+            line-height: 58px;
+            margin-bottom: 20px;
+        }
+
+        @media (min-width: 1920px) {
+            font-size: 56px;
+            line-height: 68px;
+            margin-bottom: 24px;
+        }
+    }
+
+    .error-subtitle {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 400;
+        font-size: 16px;
+        line-height: 24px;
+        color: var(--app-mute-color);
+        margin: 0;
+
+        @media (min-width: 1024px) {
+            font-size: 20px;
+            line-height: 30px;
+        }
+
+        @media (min-width: 1440px) {
+            font-size: 22px;
+            line-height: 33px;
+        }
+
+        @media (min-width: 1920px) {
+            font-size: 24px;
+            line-height: 36px;
+        }
+    }
+}
+
+// Action Section - Enhanced for large screens
+.action-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 320px;
+    margin: 0 auto;
+
+    @media (min-width: 768px) {
+        max-width: 380px;
+        gap: 20px;
+    }
+
+    @media (min-width: 1024px) {
+        max-width: 500px;
+        gap: 24px;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    @media (min-width: 1440px) {
+        max-width: 600px;
+        gap: 28px;
+    }
+
+    @media (min-width: 1920px) {
+        max-width: 700px;
+        gap: 32px;
+    }
+
+    .primary-btn {
+        --background: var(--app-primary);
+        --color: var(--app-white);
+        --border-radius: 24px;
+        height: 48px;
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 600;
+        font-size: 16px;
+        text-transform: none;
+        margin: 0;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 16px rgba(115, 64, 235, 0.3);
+        border-radius: var(--border-radius);
+
+        @media (min-width: 1024px) {
+            height: 56px;
+            font-size: 18px;
+            --border-radius: 28px;
+            flex: 1;
+            min-width: 220px;
+            max-width: 280px;
+        }
+
+        @media (min-width: 1440px) {
+            height: 64px;
+            font-size: 20px;
+            --border-radius: 32px;
+            min-width: 250px;
+            max-width: 320px;
+        }
+
+        ion-icon {
+            margin-right: 8px;
+        }
+
+        &:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(115, 64, 235, 0.4);
+
+            @media (min-width: 1024px) {
+                transform: translateY(-3px);
+                box-shadow: 0 12px 32px rgba(115, 64, 235, 0.5);
+            }
+        }
+    }
+
+    .secondary-btn {
+        --background: transparent;
+        --color: var(--app-white);
+        --border-color: var(--app-white);
+        --border-width: 1px;
+        --border-radius: 24px;
+        height: 48px;
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 600;
+        font-size: 16px;
+        text-transform: none;
+        margin: 0;
+        transition: all 0.3s ease;
+
+        @media (min-width: 1024px) {
+            height: 56px;
+            font-size: 18px;
+            --border-radius: 28px;
+            flex: 1;
+            min-width: 180px;
+            max-width: 240px;
+        }
+
+        @media (min-width: 1440px) {
+            height: 64px;
+            font-size: 20px;
+            --border-radius: 32px;
+            min-width: 200px;
+            max-width: 280px;
+        }
+
+        ion-icon {
+            margin-right: 8px;
+        }
+
+        &:hover {
+            --background: var(--app-white);
+            --color: var(--app-background);
+            transform: translateY(-1px);
+        }
+    }
+
+    .report-btn {
+        --color: var(--app-mute-color);
+        height: 44px;
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 500;
+        font-size: 14px;
+        text-transform: none;
+        margin: 0;
+        transition: all 0.3s ease;
+
+        @media (min-width: 1024px) {
+            height: 48px;
+            font-size: 16px;
+            flex-basis: 100%;
+            order: 3;
+        }
+
+        @media (min-width: 1440px) {
+            height: 52px;
+            font-size: 18px;
+        }
+
+        ion-icon {
+            margin-right: 6px;
+        }
+
+        &:hover {
+            --color: var(--app-white);
+        }
+    }
+}
+
+// Easter Egg Quote - Enhanced positioning for large screens
+.easter-egg {
+    position: fixed;
+    top: 20%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    z-index: 100;
+    opacity: 0;
+    transition: all 0.5s ease;
+    pointer-events: none;
+
+    @media (min-width: 1024px) {
+        top: 25%;
+    }
+
+    @media (min-width: 1440px) {
+        top: 30%;
+    }
+
+    &.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    .quote-container {
+        background: rgba(46, 36, 71, 0.95);
+        color: var(--app-white);
+        padding: 20px 24px;
+        border-radius: 16px;
+        font-family: 'Space Grotesk', sans-serif;
+        text-align: center;
+        backdrop-filter: blur(15px);
+        border: 1px solid var(--app-primary);
+        max-width: 320px;
+        box-shadow:
+            0 12px 40px rgba(115, 64, 235, 0.3),
+            0 0 0 1px rgba(255, 255, 255, 0.1);
+
+        @media (min-width: 768px) {
+            max-width: 380px;
+            padding: 24px 28px;
+        }
+
+        @media (min-width: 1024px) {
+            max-width: 500px;
+            padding: 32px 40px;
+            border-radius: 20px;
+        }
+
+        @media (min-width: 1440px) {
+            max-width: 600px;
+            padding: 36px 48px;
+            border-radius: 24px;
+        }
+
+        .chess-quote {
+            font-size: 16px;
+            line-height: 24px;
+            font-style: italic;
+            margin: 0 0 12px 0;
+            color: var(--app-white);
+
+            @media (min-width: 1024px) {
+                font-size: 20px;
+                line-height: 30px;
+                margin-bottom: 16px;
+            }
+
+            @media (min-width: 1440px) {
+                font-size: 22px;
+                line-height: 33px;
+                margin-bottom: 20px;
+            }
+        }
+
+        .quote-author {
+            font-size: 12px;
+            color: var(--app-mute-color);
+            font-weight: 500;
+
+            @media (min-width: 1024px) {
+                font-size: 16px;
+            }
+
+            @media (min-width: 1440px) {
+                font-size: 18px;
+            }
+        }
+    }
+}
+
+// Animations
+@keyframes glowPulse {
+    0% {
+        text-shadow:
+            0 0 20px rgba(115, 64, 235, 0.5),
+            0 0 40px rgba(115, 64, 235, 0.3),
+            0 0 60px rgba(115, 64, 235, 0.2);
+    }
+
+    100% {
+        text-shadow:
+            0 0 30px rgba(115, 64, 235, 0.8),
+            0 0 60px rgba(115, 64, 235, 0.5),
+            0 0 90px rgba(115, 64, 235, 0.3);
+    }
+}
+
+@keyframes glitchMove {
+
+    0%,
+    90%,
+    100% {
+        transform: translateX(-50%);
+    }
+
+    10% {
+        transform: translateX(-48%);
+    }
+
+    20% {
+        transform: translateX(-52%);
+    }
+
+    30% {
+        transform: translateX(-49%);
+    }
+
+    40% {
+        transform: translateX(-51%);
+    }
+
+    50% {
+        transform: translateX(-50.5%);
+    }
+}
+
+@keyframes gridGlitch {
+
+    0%,
+    100% {
+        opacity: 0.1;
+        transform: scale(1);
+    }
+
+    25% {
+        opacity: 0.3;
+        transform: scale(1.02);
+    }
+
+    50% {
+        opacity: 0.15;
+        transform: scale(0.98);
+    }
+
+    75% {
+        opacity: 0.25;
+        transform: scale(1.01);
+    }
+}
+
+@keyframes floatParticle {
+    0% {
+        transform: translateY(0) translateX(0) rotate(0deg);
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 0.6;
+    }
+
+    90% {
+        opacity: 0.6;
+    }
+
+    100% {
+        transform: translateY(-100vh) translateX(20px) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+// Remove default ion-content padding and scrolling
+ion-content::part(scroll) {
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+
+// Accessibility
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+// High contrast support
+@media (prefers-contrast: high) {
+    .error-code {
+        text-shadow: none;
+        border: 2px solid var(--app-primary);
+    }
+}

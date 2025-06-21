@@ -120,14 +120,15 @@ export class SideBarComponent implements OnInit, OnDestroy {
 				const itemText = spanElement?.textContent?.toLowerCase().replace(' ', '-') || '';
 
 				if (itemText === itemName) {
-					item.classList.add('active');
-				} else {
+					item.classList.add('active');				} else {
 					item.classList.remove('active');
 				}
 			});
 		}, 0);
 	}
+
 	navigate(route: string) {
+		// Use the router directly - simple navigation doesn't need utility
 		this.router.navigate([route]);
 	}
 }

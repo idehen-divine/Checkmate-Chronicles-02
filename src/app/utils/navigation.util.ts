@@ -1,121 +1,105 @@
-import { Injectable } from '@angular/core';
-import { Router, NavigationEnd } from '@angular/router';
+import { Router } from '@angular/router';
 import { Location } from '@angular/common';
 
+// Navigation history for tracking navigation state
+let navigationHistory: string[] = [];
+
 /**
- * Navigation utility service that provides navigation functionality
- * Consolidates both service and mixin patterns into a single utility
+ * Pure utility functions for navigation
+ * Use these for lightweight navigation operations without Angular dependency
  */
-@Injectable({ providedIn: 'root' })
-export class NavigationUtil {
-    private history: string[] = [];
 
-    constructor(
-        private router: Router,
-        private location: Location
-    ) {
-        this.router.events.subscribe(event => {
-            if (event instanceof NavigationEnd) {
-                this.history.push(event.urlAfterRedirects);
-            }
-        });
-    }
-
-    // History methods
-    public hasPreviousRoute(): boolean {
-        return this.history.length > 1;
-    }
-
-    public getPreviousUrl(): string | null {
-        return this.history.length > 1 ? this.history[this.history.length - 2] : null;
-    }
-
-    // Core navigation methods
-    public goBack(): void {
-        this.location.back();
-    }
-
-    public openMenu(): void {
-        console.log('Menu clicked');
-        // Handle menu logic - could open a side menu or navigate somewhere
-    }
-
-    // Handle sidebar navigation
-    public handleSidebarNavigation(navigationTarget: string): void {
-        console.log('Sidebar navigation clicked:', navigationTarget);
-        // Handle navigation logic here
-        // For example, you could use Angular Router to navigate to different pages
-        // this.router.navigate([`/${navigationTarget}`]);
-    }
-
-    // Handle bottom navigation
-    public handleBottomNavigation(navigationTarget: string): void {
-        console.log('Bottom nav main item clicked:', navigationTarget);
-        // Handle main navigation item clicks
-    }
-
-    // Handle bottom submenu navigation
-    public handleBottomSubmenuNavigation(navigationTarget: string): void {
-        console.log('Bottom nav submenu clicked:', navigationTarget);
-        // Handle submenu navigation logic here
-        // For example, you could use Angular Router to navigate to different pages
-        // this.router.navigate([`/${navigationTarget}`]);
-    }
-
-    // Navigation to specific routes
-    public navigateTo(route: string): void {
-        this.router.navigate([route]);
-    }
-
-    public navigateToWithParams(route: string, params: any): void {
-        this.router.navigate([route], { queryParams: params });
-    }
+/**
+ * Navigate to a specific route
+ */
+export function navigateTo(router: Router, route: string): void {
+    router.navigate([route]);
 }
 
 /**
- * Navigation mixin for components that need navigation functionality
- * Creates methods that delegate to NavigationUtil
+ * Navigate to a route with query parameters
  */
-export class NavigationMixin {
-    /**
-     * Creates navigation methods for a component
-     * @param navigationUtil - The navigation utility instance
-     * @returns Object with navigation methods
-     */
-    static createNavigationMethods(navigationUtil: NavigationUtil) {
-        return {
-            // Navigation Methods - Delegate to NavigationUtil
-            onSidebarNavigation: (navigationTarget: string): void => {
-                navigationUtil.handleSidebarNavigation(navigationTarget);
-            },
+export function navigateToWithParams(router: Router, route: string, params: any): void {
+    router.navigate([route], { queryParams: params });
+}
 
-            onBottomNavigation: (navigationTarget: string): void => {
-                navigationUtil.handleBottomNavigation(navigationTarget);
-            },
+/**
+ * Go back using browser history
+ */
+export function goBack(location: Location): void {
+    location.back();
+}
 
-            onBottomSubmenuNavigation: (navigationTarget: string): void => {
-                navigationUtil.handleBottomSubmenuNavigation(navigationTarget);
-            },
+/**
+ * Handle menu opening logic
+ */
+export function openMenu(): void {
+    console.log('Menu clicked');
+    // Handle menu logic - could trigger an event or call a callback
+}
 
-            // Header Actions - Delegate to NavigationUtil
-            goBack: (): void => {
-                navigationUtil.goBack();
-            },
+/**
+ * Handle sidebar navigation
+ */
+export function handleSidebarNavigation(router: Router, navigationTarget: string): void {
+    console.log('Sidebar navigation clicked:', navigationTarget);
+    const route = `/${navigationTarget}`;
+    navigateTo(router, route);
+}
 
-            openMenu: (): void => {
-                navigationUtil.openMenu();
-            },
+/**
+ * Handle bottom navigation
+ */
+export function handleBottomNavigation(router: Router, navigationTarget: string): void {
+    console.log('Bottom nav main item clicked:', navigationTarget);
+    const route = `/${navigationTarget}`;
+    navigateTo(router, route);
+}
 
-            // Additional navigation methods
-            navigateTo: (route: string): void => {
-                navigationUtil.navigateTo(route);
-            },
+/**
+ * Handle bottom submenu navigation
+ */
+export function handleBottomSubmenuNavigation(router: Router, navigationTarget: string): void {
+    console.log('Bottom nav submenu clicked:', navigationTarget);
+    const route = `/${navigationTarget}`;
+    navigateTo(router, route);
+}/**
+ * Create a mixin for components that need navigation functionality
+ * Use this when you want to add consistent navigation methods to a component
+ */
+export function createNavigationMixin(router: Router, location: Location) {
+    return {
+        // Navigation Methods
+        onSidebarNavigation: (navigationTarget: string): void => {
+            handleSidebarNavigation(router, navigationTarget);
+        },
 
-            navigateToWithParams: (route: string, params: any): void => {
-                navigationUtil.navigateToWithParams(route, params);
-            }
-        };
-    }
+        onBottomNavigation: (navigationTarget: string): void => {
+            handleBottomNavigation(router, navigationTarget);
+        },
+
+        onBottomSubmenuNavigation: (navigationTarget: string): void => {
+            handleBottomSubmenuNavigation(router, navigationTarget);
+        },
+
+        // Header Actions
+        goBack: (): void => {
+            goBack(location);
+        },
+
+        openMenu: (): void => {
+            openMenu();
+        },
+
+        // Direct navigation methods
+        navigateTo: (route: string): void => {
+            navigateTo(router, route);
+        },
+
+        navigateToWithParams: (route: string, params: any): void => {
+            navigateToWithParams(router, route, params);
+        }
+    };
 }
 
 /**
@@ -129,4 +113,4 @@ export interface NavigationComponent {
     openMenu(): void;
     navigateTo?(route: string): void;
     navigateToWithParams?(route: string, params: any): void;
-} 
+}

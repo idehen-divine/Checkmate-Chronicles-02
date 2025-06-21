@@ -67,6 +67,7 @@
     --app-mute-color: #A394C7;
     --app-white: #FFFFFF;
     --app-primary: #7340EB;
+    --app-secondary: #C4B1EB;
 
     // Override default text colors for dark theme
     --ion-text-color: #ffffff;
@@ -140,4 +141,213 @@ ion-popover .item-detail-icon {
     visibility: hidden !important;
     width: 0 !important;
     height: 0 !important;
+}
+
+/* Global Modal and Popup Styling */
+/* ================================= */
+
+/* Alert Component */
+.alert-wrapper {
+    background: var(--app-background) !important;
+    border-radius: 16px !important;
+    border: 2px solid var(--app-primary) !important;
+    box-shadow: 0 0 20px rgba(115, 64, 235, 0.3) !important;
+}
+
+.alert-head {
+    background: var(--app-background-light-shade) !important;
+    color: var(--app-white) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-weight: 700 !important;
+    border-radius: 14px 14px 0 0 !important;
+    padding: 20px !important;
+}
+
+.alert-title {
+    color: var(--app-white) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-weight: 700 !important;
+}
+
+.alert-sub-title {
+    color: var(--app-mute-color) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+}
+
+.alert-message {
+    color: var(--app-white) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    padding: 20px !important;
+}
+
+.alert-button-group {
+    background: var(--app-background) !important;
+    border-radius: 0 0 14px 14px !important;
+}
+
+.alert-button {
+    background: var(--app-primary) !important;
+    color: var(--app-white) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+    margin: 8px !important;
+    
+    &.alert-button-role-cancel {
+        background: var(--app-background-light-shade) !important;
+        color: var(--app-mute-color) !important;
+        border: 1px solid var(--app-mute-color) !important;
+    }
+}
+
+/* Toast Component */
+.toast-wrapper {
+    background: var(--app-background-light-shade) !important;
+    color: var(--app-white) !important;
+    border-radius: 12px !important;
+    border: 1px solid var(--app-primary) !important;
+    box-shadow: 0 4px 20px rgba(115, 64, 235, 0.2) !important;
+}
+
+.toast-message {
+    color: var(--app-white) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-weight: 500 !important;
+}
+
+.toast-button {
+    color: var(--app-primary) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-weight: 600 !important;
+}
+
+/* Action Sheet Component */
+.action-sheet-wrapper {
+    background: var(--app-background) !important;
+    border-radius: 16px 16px 0 0 !important;
+    border: 2px solid var(--app-primary) !important;
+    border-bottom: none !important;
+}
+
+.action-sheet-title {
+    background: var(--app-background-light-shade) !important;
+    color: var(--app-white) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-weight: 700 !important;
+    border-radius: 14px 14px 0 0 !important;
+}
+
+.action-sheet-button {
+    background: var(--app-background) !important;
+    color: var(--app-white) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    
+    &.action-sheet-destructive {
+        color: #FF6B6B !important;
+    }
+    
+    &.action-sheet-cancel {
+        background: var(--app-background-light-shade) !important;
+        color: var(--app-mute-color) !important;
+    }
+}
+
+/* Modal Component */
+.modal-wrapper {
+    background: var(--app-background) !important;
+    border-radius: 16px !important;
+    border: 2px solid var(--app-primary) !important;
+    box-shadow: 0 0 30px rgba(115, 64, 235, 0.4) !important;
+}
+
+.modal-header {
+    background: var(--app-background-light-shade) !important;
+    color: var(--app-white) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    border-radius: 14px 14px 0 0 !important;
+}
+
+.modal-title {
+    color: var(--app-white) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-weight: 700 !important;
+}
+
+/* Popover Component */
+.popover-wrapper {
+    background: var(--app-background-light-shade) !important;
+    border-radius: 12px !important;
+    border: 1px solid var(--app-primary) !important;
+    box-shadow: 0 8px 25px rgba(115, 64, 235, 0.3) !important;
+}
+
+.popover-content {
+    background: var(--app-background-light-shade) !important;
+    color: var(--app-white) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+}
+
+/* Loading Component */
+.loading-wrapper {
+    background: var(--app-background-light-shade) !important;
+    border-radius: 12px !important;
+    border: 2px solid var(--app-primary) !important;
+    box-shadow: 0 0 20px rgba(115, 64, 235, 0.3) !important;
+}
+
+.loading-content {
+    color: var(--app-white) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-weight: 600 !important;
+}
+
+/* Picker Component */
+.picker-wrapper {
+    background: var(--app-background) !important;
+    border-radius: 16px 16px 0 0 !important;
+    border: 2px solid var(--app-primary) !important;
+    border-bottom: none !important;
+}
+
+.picker-toolbar {
+    background: var(--app-background-light-shade) !important;
+    border-radius: 14px 14px 0 0 !important;
+}
+
+.picker-button {
+    color: var(--app-primary) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-weight: 600 !important;
+}
+
+.picker-opt {
+    color: var(--app-white) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+}
+
+/* Select Component Options */
+.select-interface-option {
+    background: var(--app-background-light-shade) !important;
+    color: var(--app-white) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+}
+
+/* Datetime Component */
+.datetime-wrapper {
+    background: var(--app-background) !important;
+    border-radius: 16px !important;
+    border: 2px solid var(--app-primary) !important;
+}
+
+/* Searchbar in overlays */
+.searchbar-input {
+    background: var(--app-background-light-shade) !important;
+    color: var(--app-white) !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+}
+
+/* Backdrop for all overlays */
+.backdrop {
+    background-color: rgba(23, 18, 33, 0.8) !important;
+    backdrop-filter: blur(4px) !important;
 }
