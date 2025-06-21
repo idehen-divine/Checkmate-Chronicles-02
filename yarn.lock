@@ -4119,6 +4119,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/chess.js@npm:^0.13.7":
+  version: 0.13.7
+  resolution: "@types/chess.js@npm:0.13.7"
+  checksum: 10c0/39c27c65547ec5b191443029256b3fd47cfc21463e7775f52496b4498dcc15d1eaa3bf720965773c7616c2b77adde6a67b508518b88556ff32950dba921f4dc9
+  languageName: node
+  linkType: hard
+
 "@types/connect-history-api-fallback@npm:^1.5.4":
   version: 1.5.4
   resolution: "@types/connect-history-api-fallback@npm:1.5.4"
@@ -5482,11 +5489,13 @@ __metadata:
     "@ionic/cli": "npm:^7.2.1"
     "@solana/wallet-standard-features": "npm:^1.3.0"
     "@supabase/supabase-js": "npm:^2.50.0"
+    "@types/chess.js": "npm:^0.13.7"
     "@types/jasmine": "npm:~5.1.0"
     "@typescript-eslint/eslint-plugin": "npm:^8.18.0"
     "@typescript-eslint/parser": "npm:^8.18.0"
     "@typescript-eslint/types": "npm:^8.34.1"
     "@typescript-eslint/utils": "npm:^8.34.1"
+    chess.js: "npm:^1.4.0"
     eslint: "npm:^9.16.0"
     eslint-plugin-import: "npm:^2.29.1"
     eslint-plugin-jsdoc: "npm:^48.2.1"
@@ -5505,6 +5514,13 @@ __metadata:
     zone.js: "npm:~0.15.0"
   languageName: unknown
   linkType: soft
+
+"chess.js@npm:^1.4.0":
+  version: 1.4.0
+  resolution: "chess.js@npm:1.4.0"
+  checksum: 10c0/9f49e298cbaabddceb1d1e27e276b9f58665090faaacec3a802b5475f8359397857b0f355e49160fac214fbff54a639432c8155b63806f8dd34d3afc575f690b
+  languageName: node
+  linkType: hard
 
 "chokidar@npm:^3.5.1, chokidar@npm:^3.6.0":
   version: 3.6.0
