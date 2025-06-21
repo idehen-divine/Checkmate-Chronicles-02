@@ -1,0 +1,98 @@
+<app-header-toolbar [title]="gameId"></app-header-toolbar>
+<div class="game-play">
+	<!-- Move History -->
+	<div class="move-history-section">
+		<h3 class="section-title">Move History</h3>
+		<div class="moves-container">
+			<div class="move-chip" *ngFor="let move of gameHistory; let i = index">
+				{{ move.notation }}
+			</div>
+			<div class="move-chip" *ngIf="gameHistory.length === 0">Game starting...</div>
+		</div>
+	</div>
+
+	<!-- Top Player (Opponent) -->
+	<div class="player-info opponent" [class.active]="currentPlayer === player2" [class.danger]="isDangerTime(player2)">
+		<div class="player-left">
+			<ion-avatar class="player-avatar">
+				<img [src]="player2.avatar" [alt]="player2.username">
+			</ion-avatar>
+			<div class="player-details">
+				<h3 class="player-name">&#64;{{ player2.username }}</h3>
+				<div class="player-stats">
+					<ion-badge color="primary">{{ player2.rating }}</ion-badge>
+					<span class="rank">{{ player2.rank }}</span>
+					<div class="online-status" [class.online]="player2.isOnline"></div>
+				</div>
+			</div>
+		</div>
+		<div class="player-right">
+			<div class="timer black-timer" [class.active]="currentPlayer === player2"
+				[class.danger]="isDangerTime(player2)">
+				<ion-icon name="time-outline"></ion-icon>
+				<span class="time">{{ formatTime(player2.timeRemaining) }}</span>
+			</div>
+		</div>
+	</div>
+
+	<!-- Chess Board -->
+	<div class="board-section">
+		<div class="chess-board">
+			<div class="board-row" *ngFor="let row of board; let rowIndex = index">
+				<div class="square" *ngFor="let square of row; let colIndex = index"
+					[class.light-square]="isSquareLight(rowIndex, colIndex)"
+					[class.dark-square]="!isSquareLight(rowIndex, colIndex)"
+					[class.selected]="isSquareSelected(rowIndex, colIndex)"
+					[class.highlighted]="isSquareHighlighted(rowIndex, colIndex)"
+					[class.in-check]="isSquareInCheck(rowIndex, colIndex)"
+					[class.can-select]="canSelectSquare(rowIndex, colIndex)"
+					(click)="onSquareClick(rowIndex, colIndex)">
+
+					<!-- Row numbers (only on first column) -->
+					<div class="row-number" *ngIf="colIndex === 0">{{ 8 - rowIndex }}</div>
+
+					<!-- Column letters (only on last row) -->
+					<div class="col-letter" *ngIf="rowIndex === 7">{{ 'abcdefgh'.charAt(colIndex) }}</div>
+
+					<!-- Chess piece -->
+					<div class="piece-symbol" *ngIf="square">{{ square }}</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Bottom Player (Current User) -->
+	<div class="player-info current" [class.active]="currentPlayer === player1" [class.danger]="isDangerTime(player1)">
+		<div class="player-left">
+			<ion-avatar class="player-avatar">
+				<img [src]="player1.avatar" [alt]="player1.username">
+			</ion-avatar>
+			<div class="player-details">
+				<h3 class="player-name">&#64;{{ player1.username }}</h3>
+				<div class="player-stats">
+					<ion-badge color="primary">{{ player1.rating }}</ion-badge>
+					<span class="rank">{{ player1.rank }}</span>
+					<div class="online-status" [class.online]="player1.isOnline"></div>
+				</div>
+			</div>
+		</div>
+		<div class="player-right">
+			<div class="timer white-timer" [class.active]="currentPlayer === player1"
+				[class.danger]="isDangerTime(player1)">
+				<ion-icon name="time-outline"></ion-icon>
+				<span class="time">{{ formatTime(player1.timeRemaining) }}</span>
+			</div>
+		</div>
+	</div> <!-- Replay Controls Component -->
+	<app-replay-controls [isReplayMode]="isReplayMode" [replayPosition]="replayPosition"
+		[replayMovesLength]="replayMoves.length" (exitReplay)="exitReplayMode()" (goToStart)="replayToPosition(0)"
+		(previousMove)="replayPreviousMove()" (nextMove)="replayNextMove()"
+		(goToEnd)="replayToPosition(replayMoves.length)" (goToPosition)="replayToPosition($event)">
+	</app-replay-controls>
+
+	<!-- Game Toolbar -->
+	<app-game-toolbar [gameEnded]="gameEnded" [canUndo]="canUndo" [canRedo]="canRedo" (chatClick)="onChatClick()"
+		(abortClick)="onAbortClick()" (hintClick)="onHintClick()" (undoClick)="onUndoClick()"
+		(redoClick)="onRedoClick()" (replayClick)="enterReplayMode()">
+	</app-game-toolbar>
+</div>
