@@ -58,13 +58,23 @@ export const routes: Routes = [
 		loadComponent: () => import('./pages/coming-soon/coming-soon.page').then(m => m.ComingSoonPage)
 	},
 	{
-		path: 'not-found',
-		loadComponent: () => import('./pages/not-found/not-found.page').then(m => m.NotFoundPage)
+		path: 'game/:slug',
+		loadComponent: () => import('./pages/game/game.page').then(m => m.GamePage),
+		canActivate: [AuthGuard]
+	},
+	{
+		path: 'game',
+		loadComponent: () => import('./pages/game/game.page').then(m => m.GamePage),
+		canActivate: [AuthGuard]
 	},
 	{
 		path: 'profile',
 		loadComponent: () => import('./pages/profile/profile.page').then(m => m.ProfilePage),
 		canActivate: [AuthGuard]
 	},
-
+	{
+		path: '**',
+		loadComponent: () => import('./pages/not-found/not-found.page').then(m => m.NotFoundPage),
+		pathMatch: 'full'
+	}
 ];
