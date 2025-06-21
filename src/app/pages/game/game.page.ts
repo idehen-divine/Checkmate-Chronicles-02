@@ -455,8 +455,18 @@ export class GamePage implements OnInit, OnDestroy {
 		// Show game end message
 		this.showGameEndDialog(`Game Aborted`, `${winner.username} wins by abandonment. ${loser.username} forfeited the game.`);
 	}
-
 	async onHintClick() {
+		if (this.gameEnded) {
+			const toast = await this.toastController.create({
+				message: 'Hints are not available when the game is over!',
+				duration: 2000,
+				position: 'top',
+				color: 'warning'
+			});
+			await toast.present();
+			return;
+		}
+
 		const possibleMoves = this.chess.moves();
 		if (possibleMoves.length > 0) {
 			const randomMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
@@ -465,6 +475,14 @@ export class GamePage implements OnInit, OnDestroy {
 				duration: 3000,
 				position: 'top',
 				color: 'success'
+			});
+			await toast.present();
+		} else {
+			const toast = await this.toastController.create({
+				message: 'No moves available!',
+				duration: 2000,
+				position: 'top',
+				color: 'warning'
 			});
 			await toast.present();
 		}

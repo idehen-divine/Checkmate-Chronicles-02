@@ -4,8 +4,7 @@
 	</button> <button class="action-btn" (click)="onAbortClick()" [disabled]="gameEnded">
 		<ion-icon name="close-circle-outline"></ion-icon>
 		<span>Abort</span>
-	</button>
-	<button class="action-btn" (click)="onHintClick()">
+	</button> <button class="action-btn" (click)="onHintClick()" [disabled]="gameEnded">
 		<ion-icon name="bulb-outline"></ion-icon>
 		<span>Hint</span>
 	</button>
