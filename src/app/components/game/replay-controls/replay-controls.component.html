@@ -1,0 +1,41 @@
+<!-- Replay Controls (only visible in replay mode) -->
+<div class="replay-controls" *ngIf="isReplayMode">
+    <div class="replay-header">
+        <h3>Game Replay Mode</h3>
+        <button class="exit-replay-btn" (click)="onExitReplay()">
+            <ion-icon name="close"></ion-icon>
+            Exit Replay
+        </button>
+    </div>
+
+    <div class="replay-navigation">
+        <button class="replay-btn" (click)="onGoToStart()" [disabled]="replayPosition === 0">
+            <ion-icon name="play-back"></ion-icon>
+            Start
+        </button>
+
+        <button class="replay-btn" (click)="onPreviousMove()" [disabled]="replayPosition === 0">
+            <ion-icon name="play-skip-back"></ion-icon>
+            Previous
+        </button>
+
+        <span class="replay-position">
+            Move {{ replayPosition }} of {{ replayMovesLength }}
+        </span>
+
+        <button class="replay-btn" (click)="onNextMove()" [disabled]="replayPosition >= replayMovesLength">
+            <ion-icon name="play-skip-forward"></ion-icon>
+            Next
+        </button>
+
+        <button class="replay-btn" (click)="onGoToEnd()" [disabled]="replayPosition >= replayMovesLength">
+            <ion-icon name="play-forward"></ion-icon>
+            End
+        </button>
+    </div>
+
+    <div class="replay-scrubber">
+        <input type="range" [min]="0" [max]="replayMovesLength" [value]="replayPosition"
+            (input)="onPositionChange($event)" class="replay-slider">
+    </div>
+</div>
