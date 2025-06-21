@@ -1,12 +1,14 @@
 import { Component, OnInit, ElementRef, ViewChild, OnDestroy, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { Location } from '@angular/common';
 import { IonContent, IonButton, IonSkeletonText } from '@ionic/angular/standalone';
 import { SideBarComponent } from '../../components/navigation/side-bar/side-bar.component';
 import { BottomNavComponent } from '../../components/navigation/bottom-nav/bottom-nav.component';
 import { UserProfileService, UserStatsService, NFTService, MatchHistoryService } from '../../services';
 import { NFTItem, MatchHistoryItem, UserProfile, UserStats } from '../../types';
-import { DragScrollUtil, NavigationUtil, NavigationMixin, NavigationComponent, DataLoaderUtil } from '../../utils';
+import { DragScrollUtil, NavigationComponent, DataLoaderUtil } from '../../utils';
 import { Subscription } from 'rxjs';
 
 @Component({
@@ -55,12 +57,9 @@ export class ProfilePage implements OnInit, OnDestroy, NavigationComponent, Afte
 	matchHistory: MatchHistoryItem[] = [];
 
 	// Subscriptions
-	private subscriptions: Subscription[] = [];
-
-	// Utilities
+	private subscriptions: Subscription[] = [];	// Utilities
 	private dragScrollCleanup?: () => void;
 	private dataLoader = new DataLoaderUtil();
-	private navigationMethods: ReturnType<typeof NavigationMixin.createNavigationMethods>;
 	private activeCardCleanup?: () => void;
 
 	constructor(
@@ -68,12 +67,10 @@ export class ProfilePage implements OnInit, OnDestroy, NavigationComponent, Afte
 		private userStatsService: UserStatsService,
 		private nftService: NFTService,
 		private matchHistoryService: MatchHistoryService,
-		private navigationUtil: NavigationUtil,
-		private elementRef: ElementRef
-	) {
-		// Initialize navigation methods using the mixin
-		this.navigationMethods = NavigationMixin.createNavigationMethods(this.navigationUtil);
-	}
+		private elementRef: ElementRef,
+		private router: Router,
+		private location: Location
+	) {}
 
 	ngOnInit() {
 		this.loadProfileData();
@@ -178,27 +175,29 @@ export class ProfilePage implements OnInit, OnDestroy, NavigationComponent, Afte
 		});
 		this.subscriptions.push(matchesSub);
 	}
-
 	// Navigation Methods - Use the mixin methods
 	onSidebarNavigation(navigationTarget: string): void {
-		this.navigationMethods.onSidebarNavigation(navigationTarget);
+		console.log('Sidebar navigation clicked:', navigationTarget);
+		this.router.navigate([`/${navigationTarget}`]);
 	}
 
 	onBottomNavigation(navigationTarget: string): void {
-		this.navigationMethods.onBottomNavigation(navigationTarget);
+		console.log('Bottom nav main item clicked:', navigationTarget);
+		this.router.navigate([`/${navigationTarget}`]);
 	}
 
 	onBottomSubmenuNavigation(navigationTarget: string): void {
-		this.navigationMethods.onBottomSubmenuNavigation(navigationTarget);
+		console.log('Bottom nav submenu clicked:', navigationTarget);
+		this.router.navigate([`/${navigationTarget}`]);
 	}
 
 	// Header Actions - Use the mixin methods
 	goBack(): void {
-		this.navigationMethods.goBack();
+		this.location.back();
 	}
 
 	openMenu(): void {
-		this.navigationMethods.openMenu();
+		console.log('Menu clicked');
 	}
 
 	// Profile Actions - Call services directly

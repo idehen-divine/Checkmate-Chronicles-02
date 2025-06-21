@@ -6,7 +6,6 @@ import { Location } from '@angular/common';
 import { IonContent, IonIcon, IonButton } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { trophyOutline, arrowBackOutline } from 'ionicons/icons';
-import { NavigationUtil } from '../../utils';
 
 @Component({
 	selector: 'app-coming-soon',
@@ -21,21 +20,16 @@ export class ComingSoonPage implements OnInit {
 
 	constructor(
 		private router: Router,
-		private location: Location,
-		private navigationUtil: NavigationUtil
+		private location: Location
 	) {
 		addIcons({ trophyOutline, arrowBackOutline });
 	}
 
 	ngOnInit() {
 	}
-
 	onGoBack() {
-		if (this.navigationUtil.hasPreviousRoute()) {
-			this.location.back();
-		} else {
-			this.router.navigate(['/dashboard']);
-		}
+		// Just go back using location - simple navigation doesn't need utility
+		this.location.back();
 	}
 
 	showEasterEgg() {

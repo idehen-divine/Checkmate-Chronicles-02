@@ -2,25 +2,18 @@ import { Injectable } from '@angular/core';
 import { Observable, of, from, map, catchError } from 'rxjs';
 import { UserProfile } from '../types';
 import { SupabaseService } from './supabase.service';
+import * as UserUtils from '../utils/user.util';
 
 @Injectable({
     providedIn: 'root'
 })
 export class UserProfileService {
 
-    constructor(private supabaseService: SupabaseService) { }
-
-    // Get user profile data with chess rank
+    constructor(private supabaseService: SupabaseService) { }    // Get user profile data with chess rank
     getUserProfile(): Observable<UserProfile> {
         const user = this.supabaseService.user;
         if (!user) {
-            return of({
-                name: 'Guest User',
-                username: 'guest',
-                email: undefined,
-                rank: 'Unranked',
-                avatar: 'assets/images/profile-avatar.png'
-            });
+            return of(UserUtils.createGuestUserProfile());
         }
 
         return from(
@@ -35,17 +28,13 @@ export class UserProfileService {
                 `)
                 .eq('id', user.id)
                 .single()
-        ).pipe(
-            map(({ data, error }) => {
+        ).pipe(            map(({ data, error }) => {
                 if (error || !data) {
-                    // Return default profile if no data found
-                    return {
-                        name: user.user_metadata?.['full_name'] || 'Chess Player',
-                        username: user.email?.split('@')[0] || 'player',
-                        email: user.email,
-                        rank: 'Novice | Unranked',
-                        avatar: 'assets/images/profile-avatar.png'
-                    };
+                    // Return default profile if no data found using utility
+                    return UserUtils.createDefaultUserProfile(
+                        user.email, 
+                        user.user_metadata?.['full_name']
+                    );
                 }
 
                 // Format rank display with ELO
@@ -58,18 +47,12 @@ export class UserProfileService {
                     username: data.username,
                     email: user.email,
                     rank: rankDisplay,
-                    avatar: 'assets/images/profile-avatar.png',
+                    avatar: UserUtils.generateAvatarUrl(data),
                     currentElo: data.current_elo,
                     highestElo: data.highest_elo
                 };
             }),
-            catchError(() => of({
-                name: 'Chess Player',
-                username: 'player',
-                email: undefined,
-                rank: 'Novice | Unranked',
-                avatar: 'assets/images/profile-avatar.png'
-            }))
+            catchError(() => of(UserUtils.createDefaultUserProfile()))
         );
     }
 

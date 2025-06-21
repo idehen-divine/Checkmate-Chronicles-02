@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable, of, from, map, catchError } from 'rxjs';
 import { MatchHistoryItem, RatingHistoryItem } from '../types';
 import { SupabaseService } from './supabase.service';
+import * as ChessUtils from '../utils/chess.util';
 
 @Injectable({
     providedIn: 'root'
@@ -27,16 +28,7 @@ export class MatchHistoryService {
             map(({ data, error }) => {
                 if (error || !data) {
                     return [];
-                }
-
-                return data.map((record: any) => ({
-                    opponentId: 'unknown',
-                    opponentName: record.opponent_username || 'Unknown Player',
-                    result: record.game_result === 'win' ? 'Won' : 
-                           record.game_result === 'loss' ? 'Lost' : 'Draw',
-                    eloChange: record.elo_change > 0 ? `+${record.elo_change}` : `${record.elo_change}`,
-                    date: new Date(record.date).toLocaleDateString()
-                }));
+                }                return data.map((record: any) => ChessUtils.createMatchHistoryItem(record));
             }),
             catchError(() => of([]))
         );

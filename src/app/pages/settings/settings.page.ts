@@ -14,8 +14,8 @@ import { addCircleOutline } from 'ionicons/icons';
 import { SideBarComponent } from '../../components/navigation/side-bar/side-bar.component';
 import { BottomNavComponent } from '../../components/navigation/bottom-nav/bottom-nav.component';
 import { HeaderToolbarComponent } from '../../components/navigation/header-toolbar/header-toolbar.component';
-import { NavigationUtil, NavigationMixin, NavigationComponent } from '../../utils';
-import { UserProfileService, UserPreferencesService, AuthService } from '../../services';
+import { NavigationComponent, createNavigationMixin } from '../../utils';
+import { UserProfileService, UserPreferencesService, AuthService, NavigationService } from '../../services';
 import { UserProfile } from '../../types';
 import { Subscription } from 'rxjs';
 
@@ -56,15 +56,13 @@ export class SettingsPage implements OnInit, OnDestroy, NavigationComponent {
 
 	// Settings state
 	notificationsEnabled: boolean = true;
-	soundEnabled: boolean = true;
-	darkModeEnabled: boolean = true;
-
+	soundEnabled: boolean = true;	darkModeEnabled: boolean = true;
 	// Navigation utility
-	private navigationMethods: ReturnType<typeof NavigationMixin.createNavigationMethods>;
+	private navigationMethods: ReturnType<typeof createNavigationMixin>;
 
 	constructor(
 		private alertController: AlertController,
-		private navigationUtil: NavigationUtil,
+		private navigationService: NavigationService,
 		private userProfileService: UserProfileService,
 		private userPreferencesService: UserPreferencesService,
 		private authService: AuthService
@@ -74,8 +72,8 @@ export class SettingsPage implements OnInit, OnDestroy, NavigationComponent {
 			'add-circle-outline': addCircleOutline
 		});
 
-		// Initialize navigation methods using the mixin
-		this.navigationMethods = NavigationMixin.createNavigationMethods(this.navigationUtil);
+		// Initialize navigation methods using the service
+		this.navigationMethods = this.navigationService.createNavigationMixin();
 	}
 
 	ngOnInit() {

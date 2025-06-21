@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable, of, from, map, catchError } from 'rxjs';
 import { SupabaseService } from './supabase.service';
+import * as PreferencesUtils from '../utils/preferences.util';
 
 export interface UserPreferences {
     sounds_enabled: boolean;
@@ -16,31 +17,30 @@ export interface UserPreferences {
 })
 export class UserPreferencesService {
 
-    constructor(private supabaseService: SupabaseService) { }
-
-    // Get user preferences
+    constructor(private supabaseService: SupabaseService) { }    // Get user preferences
     getUserPreferences(): Observable<UserPreferences> {
         const user = this.supabaseService.user;
         if (!user) {
-            return of(this.getDefaultPreferences());
+            return of(PreferencesUtils.getDefaultPreferences());
         }
 
         return from(this.supabaseService.getUserProfile(user.id)).pipe(
             map(({ data, error }) => {
                 if (error || !data) {
-                    return this.getDefaultPreferences();
+                    return PreferencesUtils.getDefaultPreferences();
                 }
 
-                return {
-                    sounds_enabled: data.sounds_enabled ?? true,
-                    hints_enabled: data.hints_enabled ?? true,
-                    legal_moves_enabled: data.legal_moves_enabled ?? true,
-                    game_invites_enabled: data.game_invites_enabled ?? true,
-                    nft_mints_enabled: data.nft_mints_enabled ?? true,
-                    announcements_enabled: data.announcements_enabled ?? true
-                };
+                // Merge with defaults to handle any missing fields
+                return PreferencesUtils.mergeWithDefaults({
+                    sounds_enabled: data.sounds_enabled,
+                    hints_enabled: data.hints_enabled,
+                    legal_moves_enabled: data.legal_moves_enabled,
+                    game_invites_enabled: data.game_invites_enabled,
+                    nft_mints_enabled: data.nft_mints_enabled,
+                    announcements_enabled: data.announcements_enabled
+                });
             }),
-            catchError(() => of(this.getDefaultPreferences()))
+            catchError(() => of(PreferencesUtils.getDefaultPreferences()))
         );
     }
 
@@ -65,11 +65,9 @@ export class UserPreferencesService {
     // Update individual preference
     async updatePreference(key: keyof UserPreferences, value: boolean): Promise<{ success: boolean; error?: string }> {
         return this.updateUserPreferences({ [key]: value });
-    }
-
-    // Reset preferences to default
+    }    // Reset preferences to default
     async resetPreferences(): Promise<{ success: boolean; error?: string }> {
-        return this.updateUserPreferences(this.getDefaultPreferences());
+        return this.updateUserPreferences(PreferencesUtils.getDefaultPreferences());
     }
 
     // Get specific preference value
@@ -77,9 +75,7 @@ export class UserPreferencesService {
         return this.getUserPreferences().pipe(
             map(preferences => preferences[key])
         );
-    }
-
-    // Toggle a preference
+    }    // Toggle a preference
     async togglePreference(key: keyof UserPreferences): Promise<{ success: boolean; error?: string }> {
         const user = this.supabaseService.user;
         if (!user) {
@@ -93,9 +89,9 @@ export class UserPreferencesService {
                 return { success: false, error: 'Failed to get current preferences' };
             }
 
-            // Toggle the specific preference
-            const newValue = !currentPrefs[key];
-            return this.updatePreference(key, newValue);
+            // Use utility to toggle the preference
+            const updatedPrefs = PreferencesUtils.togglePreference(currentPrefs, key);
+            return this.updatePreference(key, updatedPrefs[key]);
         } catch (error) {
             return { success: false, error: 'Failed to toggle preference' };
         }
@@ -104,41 +100,20 @@ export class UserPreferencesService {
     // Check if notifications are enabled (aggregated check)
     areNotificationsEnabled(): Observable<boolean> {
         return this.getUserPreferences().pipe(
-            map(preferences =>
-                preferences.game_invites_enabled ||
-                preferences.nft_mints_enabled ||
-                preferences.announcements_enabled
-            )
+            map(preferences => PreferencesUtils.areNotificationsEnabled(preferences))
+        );
+    }    // Get preferences summary (useful for dashboard/analytics)
+    getPreferencesSummary(): Observable<ReturnType<typeof PreferencesUtils.getPreferencesSummary>> {
+        return this.getUserPreferences().pipe(
+            map(preferences => PreferencesUtils.getPreferencesSummary(preferences))
         );
     }
 
-    // Get default preferences
-    private getDefaultPreferences(): UserPreferences {
-        return {
-            sounds_enabled: true,
-            hints_enabled: true,
-            legal_moves_enabled: true,
-            game_invites_enabled: true,
-            nft_mints_enabled: true,
-            announcements_enabled: true
-        };
-    }
-
-    // Export preferences (for backup/restore)
-    async exportPreferences(): Promise<{ success: boolean; data?: UserPreferences; error?: string }> {
-        try {
-            const preferences = await this.getUserPreferences().toPromise();
-            if (!preferences) {
-                return { success: false, error: 'Failed to get preferences' };
-            }
-            return { success: true, data: preferences };
-        } catch (error) {
-            return { success: false, error: 'Failed to export preferences' };
+    // Import preferences (from backup) - with validation
+    async importPreferences(preferences: any): Promise<{ success: boolean; error?: string }> {
+        if (!PreferencesUtils.validatePreferences(preferences)) {
+            return { success: false, error: 'Invalid preferences format' };
         }
-    }
-
-    // Import preferences (from backup)
-    async importPreferences(preferences: UserPreferences): Promise<{ success: boolean; error?: string }> {
         return this.updateUserPreferences(preferences);
     }
-} 
+}

@@ -6,7 +6,6 @@ import { Location } from '@angular/common';
 import { IonContent, IonIcon, IonButton } from '@ionic/angular/standalone';
 import { addIcons } from 'ionicons';
 import { homeOutline, warningOutline, arrowBackOutline } from 'ionicons/icons';
-import { NavigationUtil } from '../../utils';
 
 @Component({
 	selector: 'app-not-found',
@@ -18,11 +17,9 @@ import { NavigationUtil } from '../../utils';
 export class NotFoundPage implements OnInit, OnDestroy {
 	showEasterEgg = false;
 	private easterEggTimer: any;
-
 	constructor(
 		private router: Router,
-		private location: Location,
-		private navigationUtil: NavigationUtil
+		private location: Location
 	) {
 		addIcons({ homeOutline, warningOutline, arrowBackOutline });
 	}
@@ -47,13 +44,9 @@ export class NotFoundPage implements OnInit, OnDestroy {
 	onGoHome() {
 		this.router.navigate(['/dashboard']);
 	}
-
 	onGoBack() {
-		if (this.navigationUtil.hasPreviousRoute()) {
-			this.location.back();
-		} else {
-			this.router.navigate(['/dashboard']);
-		}
+		// Just go back using location
+		this.location.back();
 	}
 
 	onReportIssue() {
