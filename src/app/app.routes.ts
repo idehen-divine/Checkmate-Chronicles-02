@@ -29,11 +29,6 @@ export const routes: Routes = [
 		canActivate: [AuthGuard]
 	},
 	{
-		path: 'quick-play',
-		loadComponent: () => import('./pages/quick-play/quick-play.page').then(m => m.QuickPlayPage),
-		canActivate: [AuthGuard]
-	},
-	{
 		path: 'tournaments',
 		loadComponent: () => import('./pages/tournaments/tournaments.page').then(m => m.TournamentsPage),
 		canActivate: [AuthGuard]
