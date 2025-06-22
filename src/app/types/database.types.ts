@@ -116,24 +116,24 @@ export interface Database {
                 Row: {
                     id: string;
                     player_id: string;
-                    game_type: 'bullet' | 'blitz' | 'rapid' | 'classical';
-                    status: 'waiting' | 'matching' | 'matched' | 'lobby';
+                    game_type: string;
+                    status: 'waiting' | 'matching' | 'matched' | 'cancelled';
                     created_at: string;
                     updated_at: string;
                 };
                 Insert: {
                     id?: string;
                     player_id: string;
-                    game_type: 'bullet' | 'blitz' | 'rapid' | 'classical';
-                    status?: 'waiting' | 'matching' | 'matched' | 'lobby';
+                    game_type: string;
+                    status?: 'waiting' | 'matching' | 'matched' | 'cancelled';
                     created_at?: string;
                     updated_at?: string;
                 };
                 Update: {
                     id?: string;
                     player_id?: string;
-                    game_type?: 'bullet' | 'blitz' | 'rapid' | 'classical';
-                    status?: 'waiting' | 'matching' | 'matched' | 'lobby';
+                    game_type?: string;
+                    status?: 'waiting' | 'matching' | 'matched' | 'cancelled';
                     created_at?: string;
                     updated_at?: string;
                 };
@@ -143,6 +143,7 @@ export interface Database {
                     id: string;
                     player1_id: string;
                     player2_id: string;
+                    game_type: string;
                     status: 'waiting' | 'active' | 'finished';
                     winner_id: string | null;
                     result: 'win' | 'loss' | 'draw' | 'timeout' | 'resign' | 'abort' | null;
@@ -154,6 +155,7 @@ export interface Database {
                     id?: string;
                     player1_id: string;
                     player2_id: string;
+                    game_type: string;
                     status?: 'waiting' | 'active' | 'finished';
                     winner_id?: string | null;
                     result?: 'win' | 'loss' | 'draw' | 'timeout' | 'resign' | 'abort' | null;
@@ -165,6 +167,7 @@ export interface Database {
                     id?: string;
                     player1_id?: string;
                     player2_id?: string;
+                    game_type?: string;
                     status?: 'waiting' | 'active' | 'finished';
                     winner_id?: string | null;
                     result?: 'win' | 'loss' | 'draw' | 'timeout' | 'resign' | 'abort' | null;
@@ -358,6 +361,138 @@ export interface Database {
             cleanup_old_queue_entries: {
                 Args: {};
                 Returns: void;
+            };
+            // Cleanup functions for all tables
+            cleanup_old_game_moves: {
+                Args: {};
+                Returns: void;
+            };
+            cleanup_old_game_messages: {
+                Args: {};
+                Returns: void;
+            };
+            cleanup_old_game_events: {
+                Args: {};
+                Returns: void;
+            };
+            cleanup_old_game_lobby_logs: {
+                Args: {};
+                Returns: void;
+            };
+            cleanup_old_rating_history: {
+                Args: {};
+                Returns: void;
+            };
+            cleanup_old_games: {
+                Args: {};
+                Returns: void;
+            };
+            cleanup_old_matchmaking_queue: {
+                Args: {};
+                Returns: void;
+            };
+            // Statistics functions for all tables
+            get_game_moves_stats: {
+                Args: {};
+                Returns: {
+                    total_moves: number;
+                    moves_last_week: number;
+                    moves_last_month: number;
+                    active_game_moves: number;
+                    finished_game_moves: number;
+                    oldest_move: string;
+                    newest_move: string;
+                }[];
+            };
+            get_game_messages_stats: {
+                Args: {};
+                Returns: {
+                    total_messages: number;
+                    messages_last_week: number;
+                    messages_last_month: number;
+                    active_game_messages: number;
+                    finished_game_messages: number;
+                    system_messages: number;
+                    user_messages: number;
+                    oldest_message: string;
+                    newest_message: string;
+                }[];
+            };
+            get_game_events_stats: {
+                Args: {};
+                Returns: {
+                    total_events: number;
+                    events_last_week: number;
+                    events_last_month: number;
+                    move_events_count: number;
+                    game_events_count: number;
+                    oldest_event: string;
+                    newest_event: string;
+                }[];
+            };
+            get_game_lobby_logs_stats: {
+                Args: {};
+                Returns: {
+                    total_logs: number;
+                    logs_last_week: number;
+                    logs_last_month: number;
+                    active_game_logs: number;
+                    finished_game_logs: number;
+                    entered_logs: number;
+                    left_logs: number;
+                    ready_logs: number;
+                    oldest_log: string;
+                    newest_log: string;
+                }[];
+            };
+            get_rating_history_stats: {
+                Args: {};
+                Returns: {
+                    total_records: number;
+                    records_last_week: number;
+                    records_last_month: number;
+                    unique_users: number;
+                    avg_rating_change: number;
+                    max_rating_gain: number;
+                    max_rating_loss: number;
+                    oldest_record: string;
+                    newest_record: string;
+                }[];
+            };
+            get_games_stats: {
+                Args: {};
+                Returns: {
+                    total_games: number;
+                    games_last_week: number;
+                    games_last_month: number;
+                    active_games: number;
+                    finished_games: number;
+                    game_types_breakdown: any; // JSONB object with game_type: count pairs
+                    oldest_game: string;
+                    newest_game: string;
+                }[];
+            };
+            get_matchmaking_queue_stats: {
+                Args: {};
+                Returns: {
+                    total_entries: number;
+                    entries_last_week: number;
+                    entries_last_month: number;
+                    waiting_entries: number;
+                    matched_entries: number;
+                    cancelled_entries: number;
+                    game_types_breakdown: any; // JSONB object with game_type: count pairs
+                    avg_wait_time: string;
+                    oldest_entry: string;
+                    newest_entry: string;
+                }[];
+            };
+            manual_cleanup_game_events: {
+                Args: {};
+                Returns: {
+                    deleted_count: number;
+                    message: string;
+                }[];
             };
             log_game_event: {
                 Args: {

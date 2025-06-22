@@ -15,8 +15,13 @@ export interface OnlinePlayer {
     last_seen_at?: string;
 }
 
-export type GameType = 'bullet' | 'blitz' | 'rapid' | 'classical';
-export type QueueStatus = 'waiting' | 'matching' | 'matched' | 'lobby';
+// Game mode types - can be extended for different game modes
+export type GameMode = 'quick-match' | 'tournament' | 'custom' | 'challenge' | 'ranked' | 'casual';
+
+// Time control types for quick matches
+export type TimeControl = 'bullet' | 'blitz' | 'rapid' | 'classical';
+
+export type QueueStatus = 'waiting' | 'matching' | 'matched' | 'cancelled';
 
 @Injectable({
     providedIn: 'root'
@@ -59,7 +64,7 @@ export class MatchmakingService {
     }
 
     // Join matchmaking queue
-    async joinMatchmakingQueue(gameType: GameType): Promise<void> {
+    async joinMatchmakingQueue(gameType: GameMode): Promise<void> {
         const user = this.supabaseService.user;
         if (!user) throw new Error('User not authenticated');
 
@@ -97,7 +102,7 @@ export class MatchmakingService {
 
         // Update online status
         await this.supabaseService.updateUserProfile(user.id, {
-                is_online: true,
+            is_online: true,
             last_seen_at: new Date().toISOString(),
             last_seen_method: 'joining_queue'
         });
@@ -110,7 +115,7 @@ export class MatchmakingService {
             player_id: user.id,
             game_type: gameType,
             status: 'waiting'
-            });
+        });
 
         if (error) {
             console.error('Error joining matchmaking queue:', error);
@@ -151,7 +156,7 @@ export class MatchmakingService {
         }
     }
 
-    private async startMatchmaking(userId: string, userElo: number, gameType: GameType): Promise<void> {
+    private async startMatchmaking(userId: string, userElo: number, gameType: GameMode): Promise<void> {
         console.log(`🔍 Starting matchmaking for user ${userId} (ELO: ${userElo}, Game Type: ${gameType})`);
 
         // Subscribe to queue changes
@@ -164,7 +169,7 @@ export class MatchmakingService {
         await this.checkForMatch(userId, userElo, gameType);
     }
 
-    private async checkForMatch(userId: string, userElo: number, gameType: GameType): Promise<void> {
+    private async checkForMatch(userId: string, userElo: number, gameType: GameMode): Promise<void> {
         console.log(`🔍 Checking for match for user ${userId}...`);
 
         const { data: queueEntries, error } = await this.supabaseService.getMatchmakingQueue();
@@ -201,26 +206,32 @@ export class MatchmakingService {
         }
     }
 
-    private async createGame(player1Id: string, player2Id: string, gameType: GameType): Promise<void> {
+    private async createGame(player1Id: string, player2Id: string, gameType: GameMode): Promise<void> {
         console.log(`🎮 Creating game between ${player1Id} and ${player2Id}`);
 
         try {
-            // Create the game
-            const { data: game, error: gameError } = await this.supabaseService.createGame({
+            // Create game with metadata including time control
+            const gameData = {
                 player1_id: player1Id,
                 player2_id: player2Id,
-                status: 'waiting',
+                game_type: gameType,
+                status: 'waiting' as const,
                 meta: {
-                    game_type: gameType,
-                    fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-                    white_time_left: this.getTimeControlForGameType(gameType),
-                    black_time_left: this.getTimeControlForGameType(gameType)
+                    timeControl: this.getDefaultTimeControlForGameMode(gameType),
+                    initialTime: this.getDefaultTimeControlForGameMode(gameType) * 60, // Convert to seconds
+                    increment: 0,
+                    board: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', // Starting position
+                    moves: [],
+                    turn: 'white',
+                    gameStarted: false
                 }
-            });
+            };
 
-            if (gameError || !game) {
-                console.error('Error creating game:', gameError);
-                return;
+            const { data: game, error } = await this.supabaseService.createGame(gameData);
+
+            if (error || !game) {
+                console.error('❌ Error creating game:', error);
+                throw error || new Error('Failed to create game');
             }
 
             // Remove both players from queue
@@ -236,38 +247,52 @@ export class MatchmakingService {
             this.queueStatusSubject.next(false);
 
         } catch (error) {
-            console.error('Error in createGame:', error);
+            console.error('❌ Error in createGame:', error);
+            throw error;
         }
     }
 
-    private getTimeControlForGameType(gameType: GameType): number {
-        switch (gameType) {
-            case 'bullet':
-                return 60; // 1 minute
-            case 'blitz':
-                return 300; // 5 minutes
-            case 'rapid':
-                return 900; // 15 minutes
-            case 'classical':
-                return 1800; // 30 minutes
+    // Get default time control in minutes for different game modes
+    private getDefaultTimeControlForGameMode(gameMode: GameMode): number {
+        switch (gameMode) {
+            case 'quick-match':
+                return 10; // 10 minutes default for quick matches
+            case 'tournament':
+                return 15; // 15 minutes for tournament games
+            case 'ranked':
+                return 10; // 10 minutes for ranked games
+            case 'challenge':
+                return 10; // 10 minutes for challenges
+            case 'custom':
+                return 15; // 15 minutes for custom games
+            case 'casual':
+                return 10; // 10 minutes for casual games
             default:
-                return 300; // Default to blitz
+                return 10; // Default fallback
         }
+    }
+
+    // Helper method to get time control from minutes (for backward compatibility)
+    getTimeControlFromMinutes(minutes: number): TimeControl {
+        if (minutes <= 3) return 'bullet';
+        if (minutes <= 10) return 'blitz';
+        if (minutes <= 30) return 'rapid';
+        return 'classical';
     }
 
     // Get online players for challenges
     async getOnlinePlayers(): Promise<OnlinePlayer[]> {
-            const { data: players, error } = await this.supabaseService.db
-                .from('users')
+        const { data: players, error } = await this.supabaseService.db
+            .from('users')
             .select('id, username, avatar_url, elo, is_online, wins, losses, draws, last_seen_at')
-                .eq('is_online', true)
+            .eq('is_online', true)
             .order('elo', { ascending: false })
             .limit(50);
 
-            if (error) {
-                console.error('Error fetching online players:', error);
-                return [];
-            }
+        if (error) {
+            console.error('Error fetching online players:', error);
+            return [];
+        }
 
         return players || [];
     }
@@ -278,7 +303,7 @@ export class MatchmakingService {
         if (!user) return;
 
         const { error } = await this.supabaseService.updateUserProfile(user.id, {
-                is_online: isOnline,
+            is_online: isOnline,
             last_seen_at: new Date().toISOString(),
             last_seen_method: isOnline ? 'active' : 'offline'
         });

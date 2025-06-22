@@ -447,14 +447,154 @@ export class SupabaseService {
 			.from('admins')
 			.select(`
 				*,
-				users (
-					id,
+				users:user_id (
 					username,
-					avatar_url,
-					status
+					avatar_url
 				)
 			`)
 			.order('created_at', { ascending: false });
 		return { data, error };
+	}
+
+	// Cleanup methods - automatically triggered by database interactions
+	async manualCleanupGameMoves() {
+		const { data, error } = await this.supabase.rpc('cleanup_old_game_moves');
+		return { data, error };
+	}
+
+	async manualCleanupGameMessages() {
+		const { data, error } = await this.supabase.rpc('cleanup_old_game_messages');
+		return { data, error };
+	}
+
+	async manualCleanupGameEvents() {
+		const { data, error } = await this.supabase.rpc('cleanup_old_game_events');
+		return { data, error };
+	}
+
+	async manualCleanupGameLobbyLogs() {
+		const { data, error } = await this.supabase.rpc('cleanup_old_game_lobby_logs');
+		return { data, error };
+	}
+
+	async manualCleanupRatingHistory() {
+		const { data, error } = await this.supabase.rpc('cleanup_old_rating_history');
+		return { data, error };
+	}
+
+	async manualCleanupGames() {
+		const { data, error } = await this.supabase.rpc('cleanup_old_games');
+		return { data, error };
+	}
+
+	async manualCleanupMatchmakingQueue() {
+		const { data, error } = await this.supabase.rpc('cleanup_old_matchmaking_queue');
+		return { data, error };
+	}
+
+	async manualCleanupGameEventsWithReport() {
+		const { data, error } = await this.supabase.rpc('manual_cleanup_game_events');
+		return { data, error };
+	}
+
+	// Statistics methods
+	async getGameMovesStats() {
+		const { data, error } = await this.supabase.rpc('get_game_moves_stats');
+		return { data: data?.[0] || null, error };
+	}
+
+	async getGameMessagesStats() {
+		const { data, error } = await this.supabase.rpc('get_game_messages_stats');
+		return { data: data?.[0] || null, error };
+	}
+
+	async getGameEventsStats() {
+		const { data, error } = await this.supabase.rpc('get_game_events_stats');
+		return { data: data?.[0] || null, error };
+	}
+
+	async getGameLobbyLogsStats() {
+		const { data, error } = await this.supabase.rpc('get_game_lobby_logs_stats');
+		return { data: data?.[0] || null, error };
+	}
+
+	async getRatingHistoryStats() {
+		const { data, error } = await this.supabase.rpc('get_rating_history_stats');
+		return { data: data?.[0] || null, error };
+	}
+
+	async getGamesStats() {
+		const { data, error } = await this.supabase.rpc('get_games_stats');
+		return { data: data?.[0] || null, error };
+	}
+
+	async getMatchmakingQueueStats() {
+		const { data, error } = await this.supabase.rpc('get_matchmaking_queue_stats');
+		return { data: data?.[0] || null, error };
+	}
+
+	// Comprehensive database statistics
+	async getAllDatabaseStats() {
+		try {
+			const [
+				movesStats,
+				messagesStats,
+				eventsStats,
+				lobbyStats,
+				ratingStats,
+				gamesStats,
+				queueStats
+			] = await Promise.all([
+				this.getGameMovesStats(),
+				this.getGameMessagesStats(),
+				this.getGameEventsStats(),
+				this.getGameLobbyLogsStats(),
+				this.getRatingHistoryStats(),
+				this.getGamesStats(),
+				this.getMatchmakingQueueStats()
+			]);
+
+			return {
+				data: {
+					moves: movesStats.data,
+					messages: messagesStats.data,
+					events: eventsStats.data,
+					lobby: lobbyStats.data,
+					ratings: ratingStats.data,
+					games: gamesStats.data,
+					queue: queueStats.data
+				},
+				error: null
+			};
+		} catch (error) {
+			return { data: null, error };
+		}
+	}
+
+	// Manual cleanup all tables
+	async manualCleanupAllTables() {
+		try {
+			const results = await Promise.all([
+				this.manualCleanupGameMoves(),
+				this.manualCleanupGameMessages(),
+				this.manualCleanupGameEvents(),
+				this.manualCleanupGameLobbyLogs(),
+				this.manualCleanupRatingHistory(),
+				this.manualCleanupGames(),
+				this.manualCleanupMatchmakingQueue()
+			]);
+
+			const errors = results.filter(result => result.error);
+			return {
+				data: {
+					cleaned_tables: results.length - errors.length,
+					total_tables: results.length,
+					errors: errors.map(e => e.error)
+				},
+				error: errors.length > 0 ? errors[0].error : null
+			};
+		} catch (error) {
+			return { data: null, error };
+		}
 	}
 }
