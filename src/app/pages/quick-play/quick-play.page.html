@@ -1,128 +1,169 @@
+<ion-header>
+  <app-header-toolbar title="Quick Play"></app-header-toolbar>
+</ion-header>
+
 <ion-content>
-  <app-header-toolbar title="Quick Play Lobby"></app-header-toolbar>
+  <div class="quick-play-container">
 
-  <div class="quick-play-lobby">
-    
-    <!-- Game Toolbar (like game page) -->
-    <div class="game-toolbar">
-      <ion-button 
-        fill="clear" 
-        size="small"
-        (click)="openChatComingSoon()">
-        <ion-icon name="chatbubble" slot="start"></ion-icon>
-        Chat
-      </ion-button>
-      
-      <ion-button 
-        fill="clear" 
-        size="small"
-        (click)="openMoreOptions($event)">
-        <ion-icon name="ellipsisVertical" slot="start"></ion-icon>
-        More
-      </ion-button>
-    </div>
+    <!-- Matchmaking Phase -->
+    <div *ngIf="gameState === 'finding-match'" class="matchmaking-phase">
+      <div class="matchmaking-content">
+        <div class="loading-animation">
+          <ion-spinner name="dots" color="primary" size="large"></ion-spinner>
+        </div>
+        <h2>{{ getGameStatus() }}</h2>
+        <p>Please wait while we find you an opponent...</p>
 
-    <!-- Game Info -->
-    <div class="game-info">
-      <h1>{{ gameName }}</h1>
-      <div class="game-settings">
-        <ion-chip color="primary">
-          <ion-icon name="time"></ion-icon>
-          <ion-label>{{ gameMinutes }} minutes</ion-label>
-        </ion-chip>
-        <ion-chip *ngIf="hintsEnabled" color="secondary">
-          <ion-icon name="bulb"></ion-icon>
-          <ion-label>Hints enabled</ion-label>
-        </ion-chip>
+        <div class="match-info">
+          <ion-chip color="primary">
+            <ion-icon name="time"></ion-icon>
+            <ion-label>{{ gameMinutes }} minutes</ion-label>
+          </ion-chip>
+          <ion-chip color="secondary">
+            <ion-icon name="person"></ion-icon>
+            <ion-label>1v1 Match</ion-label>
+          </ion-chip>
+        </div>
       </div>
     </div>
 
-    <!-- Players Section -->
-    <div class="players-section">
-      
-      <!-- Current Player -->
-      <div class="player-card current-player">
-        <div class="player-info">
-          <ion-avatar>
-            <img [src]="currentPlayer?.avatar || '/assets/images/profile-avatar.png'" alt="Your avatar">
-          </ion-avatar>
-          <div class="player-details">
-            <h3>{{ currentPlayer?.username || 'You' }}</h3>
-            <p>1200 ELO</p>
-            <div class="player-label">You</div>
+    <!-- Game Lobby Phase -->
+    <div *ngIf="gameState === 'lobby'" class="game-lobby">
+
+      <!-- Game Toolbar -->
+      <div class="game-toolbar">
+        <ion-button fill="clear" size="small" (click)="openChatComingSoon()">
+          <ion-icon name="chatbubble" slot="start"></ion-icon>
+          Chat
+        </ion-button>
+
+        <ion-button fill="clear" size="small" (click)="openMoreOptions($event)" [disabled]="!isHost">
+          <ion-icon name="ellipsisVertical" slot="start"></ion-icon>
+          More
+        </ion-button>
+      </div>
+
+      <!-- Host Indicator -->
+      <div class="host-indicator">
+        <ion-chip [color]="isHost ? 'success' : 'medium'">
+          <ion-icon [name]="isHost ? 'checkmark' : 'person'"></ion-icon>
+          <ion-label>{{ isHost ? 'HOST' : 'GUEST' }}</ion-label>
+        </ion-chip>
+        <p class="host-message">{{ getHostIndicator() }}</p>
+      </div>
+
+      <!-- Game Info -->
+      <div class="game-info">
+        <h1>{{ gameName }}</h1>
+        <div class="game-settings">
+          <ion-chip color="primary">
+            <ion-icon name="time"></ion-icon>
+            <ion-label>{{ gameMinutes }} minutes</ion-label>
+          </ion-chip>
+          <ion-chip *ngIf="hintsEnabled" color="secondary">
+            <ion-icon name="bulb"></ion-icon>
+            <ion-label>Hints enabled</ion-label>
+          </ion-chip>
+        </div>
+      </div>
+
+      <!-- Players Section -->
+      <div class="players-section">
+
+        <!-- Current Player -->
+        <div class="player-card current-player">
+          <div class="player-info">
+            <ion-avatar>
+              <img [src]="currentPlayer?.avatar || '/assets/images/profile-avatar.png'" alt="Your avatar">
+            </ion-avatar>
+            <div class="player-details">
+              <h3>{{ currentPlayer?.username || 'You' }}</h3>
+              <p>1200 ELO</p>
+              <div class="player-label" [class.host-label]="isHost">
+                {{ isHost ? 'Host' : 'Guest' }}
+              </div>
+            </div>
+          </div>
+          <div class="player-status">
+            <ion-icon [name]="isReady ? 'checkmark' : 'time'" [color]="isReady ? 'success' : 'medium'">
+            </ion-icon>
+            <span [class.ready]="isReady">
+              {{ isReady ? 'Ready' : 'Not Ready' }}
+            </span>
           </div>
         </div>
-        <div class="player-status">
-          <ion-icon 
-            [name]="isReady ? 'checkmark' : 'time'" 
-            [color]="isReady ? 'success' : 'medium'">
-          </ion-icon>
-          <span [class.ready]="isReady">
-            {{ isReady ? 'Ready' : 'Not Ready' }}
-          </span>
+
+        <div class="vs-divider">
+          <span>VS</span>
         </div>
-      </div>
 
-      <div class="vs-divider">
-        <span>VS</span>
-      </div>
+        <!-- Opponent -->
+        <div class="player-card opponent-player">
+          <div class="player-info">
+            <ion-avatar>
+              <img [src]="opponent?.avatar || '/assets/images/profile-avatar.png'" alt="Opponent avatar">
+            </ion-avatar>
+            <div class="player-details">
+              <h3>{{ opponent?.username }}</h3>
+              <p>1650 ELO</p>
+              <div class="player-label" [class.host-label]="opponent?.isHost">
+                {{ opponent?.isHost ? 'Host' : 'Guest' }}
+              </div>
+            </div>
+          </div>
 
-      <!-- Opponent -->
-      <div class="player-card opponent-player">
-        <div *ngIf="opponent" class="player-info">
-          <ion-avatar>
-            <img [src]="opponent.avatar || '/assets/images/profile-avatar.png'" alt="Opponent avatar">
-          </ion-avatar>
-          <div class="player-details">
-            <h3>{{ opponent.username }}</h3>
-            <p>1650 ELO</p>
-            <div class="player-label">Opponent</div>
+          <div class="player-status">
+            <ion-icon [name]="opponent?.ready ? 'checkmark' : 'time'" [color]="opponent?.ready ? 'success' : 'medium'">
+            </ion-icon>
+            <span [class.ready]="opponent?.ready">
+              {{ opponent?.ready ? 'Ready' : 'Not Ready' }}
+            </span>
           </div>
         </div>
-        
-        <div *ngIf="!opponent" class="waiting-opponent">
-          <ion-spinner name="dots" color="medium"></ion-spinner>
-          <h3>Waiting for opponent...</h3>
-          <p>Looking for another player</p>
-        </div>
+      </div>
 
-        <div *ngIf="opponent" class="player-status">
-          <ion-icon 
-            [name]="opponent.ready ? 'checkmark' : 'time'" 
-            [color]="opponent.ready ? 'success' : 'medium'">
+      <!-- Game Status -->
+      <div class="game-status">
+        <div class="status-message">
+          <h3>{{ getGameStatus() }}</h3>
+        </div>
+      </div>
+
+      <!-- Ready Button -->
+      <div class="ready-section">
+        <ion-button expand="block" size="large" [color]="isReady ? 'medium' : 'success'" (click)="toggleReady()"
+          [disabled]="!canClickReady()">
+          <ion-icon [name]="isReady ? 'checkmark' : 'play'" slot="start">
           </ion-icon>
-          <span [class.ready]="opponent.ready">
-            {{ opponent.ready ? 'Ready' : 'Not Ready' }}
-          </span>
-        </div>
+          {{ isReady ? 'Cancel Ready' : 'Ready to Play' }}
+        </ion-button>
       </div>
-    </div>
-
-    <!-- Game Status -->
-    <div class="game-status">
-      <div class="status-message">
-        <h3>{{ getGameStatus() }}</h3>
-      </div>
-    </div>
-
-    <!-- Ready Button -->
-    <div class="ready-section">
-      <ion-button 
-        expand="block" 
-        size="large"
-        [color]="isReady ? 'medium' : 'success'"
-        (click)="toggleReady()"
-        [disabled]="!canClickReady || gameStarting">
-        <ion-icon 
-          [name]="isReady ? 'checkmark' : 'play'" 
-          slot="start">
-        </ion-icon>
-        {{ isReady ? 'Cancel Ready' : 'Ready to Play' }}
-      </ion-button>
-      
-      <p class="ready-note" *ngIf="!canClickReady">
-        Ready button will be enabled when another player joins
-      </p>
     </div>
   </div>
 </ion-content>
+
+<!-- Bottom Toolbar (only show in lobby phase) -->
+<ion-footer *ngIf="gameState === 'lobby'">
+  <ion-toolbar class="bottom-game-toolbar">
+    <ion-buttons slot="start">
+      <ion-button fill="clear" (click)="toggleChat()" [color]="chatVisible ? 'primary' : 'medium'">
+        <ion-icon name="chatbubble" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+
+    <ion-buttons slot="end">
+      <ion-button fill="clear" (click)="toggleHints()" [color]="hintsEnabled ? 'warning' : 'medium'"
+        [disabled]="!isHost">
+        <ion-icon name="bulb" slot="icon-only"></ion-icon>
+      </ion-button>
+
+      <ion-button fill="clear" (click)="openTimeModal()" [disabled]="!isHost">
+        <ion-icon name="time" slot="icon-only"></ion-icon>
+      </ion-button>
+
+      <ion-button fill="clear" (click)="openSettingsModal()" [disabled]="!isHost">
+        <ion-icon name="settings" slot="icon-only"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-footer>

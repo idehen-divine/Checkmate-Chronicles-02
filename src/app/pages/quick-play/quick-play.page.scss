@@ -130,12 +130,67 @@
   }
 }
 
+// Page structure
+ion-content {
+  --background: var(--ion-background-color);
+}
+
 // Game Lobby Styles
-.quick-play-lobby {
+.quick-play-container {
   padding: 16px;
   max-width: 600px;
   margin: 0 auto;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 60px; // Space for bottom toolbar
+}
+
+// Matchmaking Phase Styles
+.matchmaking-phase {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  
+  .matchmaking-content {
+    padding: 40px 20px;
+    
+    .loading-animation {
+      margin-bottom: 24px;
+      
+      ion-spinner {
+        width: 60px;
+        height: 60px;
+      }
+    }
+    
+    h2 {
+      margin: 0 0 16px;
+      color: var(--ion-color-primary);
+      font-weight: 600;
+      font-size: 1.5rem;
+    }
+    
+    p {
+      margin: 0 0 32px;
+      color: var(--ion-color-medium);
+      font-size: 1rem;
+    }
+    
+    .match-info {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+  }
+}
+
+// Game Lobby Styles
+.game-lobby {
+  flex: 1;
   display: flex;
   flex-direction: column;
 }
@@ -146,7 +201,7 @@
   align-items: center;
   padding: 12px 0;
   border-bottom: 1px solid var(--ion-color-step-100);
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   
   ion-button {
     --color: var(--ion-color-medium);
@@ -154,18 +209,39 @@
     &:hover {
       --color: var(--ion-color-primary);
     }
+    
+    &:disabled {
+      --color: var(--ion-color-step-400);
+    }
+  }
+}
+
+.host-indicator {
+  text-align: center;
+  margin-bottom: 20px;
+  
+  ion-chip {
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  
+  .host-message {
+    margin: 0;
+    color: var(--ion-color-medium);
+    font-size: 0.9rem;
+    font-style: italic;
   }
 }
 
 .game-info {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
   
   h1 {
     margin: 0 0 16px;
     color: var(--ion-color-primary);
     font-weight: 700;
-    font-size: 1.8rem;
+    font-size: 1.6rem;
   }
   
   .game-settings {
@@ -181,7 +257,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
 }
 
 .player-card {
@@ -227,13 +303,17 @@
       }
       
       .player-label {
-        background: var(--ion-color-primary);
+        background: var(--ion-color-secondary);
         color: white;
         padding: 2px 8px;
         border-radius: 8px;
         font-size: 0.75rem;
         font-weight: 600;
         display: inline-block;
+        
+        &.host-label {
+          background: var(--ion-color-success);
+        }
       }
     }
   }
@@ -256,26 +336,6 @@
       }
     }
   }
-  
-  .waiting-opponent {
-    text-align: center;
-    padding: 20px;
-    color: var(--ion-color-medium);
-    
-    ion-spinner {
-      margin-bottom: 16px;
-    }
-    
-    h3 {
-      margin: 0 0 8px;
-      color: var(--ion-color-medium-shade);
-    }
-    
-    p {
-      margin: 0;
-      font-size: 0.9rem;
-    }
-  }
 }
 
 .vs-divider {
@@ -294,7 +354,7 @@
 
 .game-status {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   
   .status-message {
     background: var(--ion-color-step-50);
@@ -316,14 +376,34 @@
     --border-radius: 12px;
     height: 48px;
     font-weight: 600;
-    margin-bottom: 12px;
   }
+}
+
+// Bottom Toolbar Styles
+.bottom-game-toolbar {
+  --background: var(--ion-color-step-50);
+  --border-color: var(--ion-color-step-200);
+  border-top: 1px solid var(--border-color);
   
-  .ready-note {
-    margin: 8px 0 0;
-    color: var(--ion-color-medium);
-    font-size: 0.9rem;
-    font-style: italic;
+  ion-button {
+    --color: var(--ion-color-medium);
+    
+    &:hover {
+      --color: var(--ion-color-primary);
+    }
+    
+    &[color="primary"] {
+      --color: var(--ion-color-primary);
+    }
+    
+    &[color="warning"] {
+      --color: var(--ion-color-warning);
+    }
+    
+    &:disabled {
+      --color: var(--ion-color-step-400);
+      opacity: 0.5;
+    }
   }
 }
 
@@ -333,8 +413,13 @@
     padding: 12px;
   }
   
-  .game-lobby-container {
+  .quick-play-container {
     padding: 12px;
+    padding-bottom: 60px;
+  }
+  
+  .matchmaking-content {
+    padding: 30px 15px !important;
   }
   
   .player-card .player-info {
@@ -344,12 +429,6 @@
       width: 50px;
       height: 50px;
     }
-  }
-  
-  .lobby-details {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
   }
 }
 
@@ -367,5 +446,10 @@
   
   .game-status .status-message {
     background: var(--ion-color-step-100);
+  }
+  
+  .bottom-game-toolbar {
+    --background: var(--ion-color-step-100);
+    --border-color: var(--ion-color-step-300);
   }
 }

@@ -2,18 +2,19 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { IonicModule, AlertController, PopoverController } from '@ionic/angular';
+import { IonicModule, AlertController, PopoverController, ModalController } from '@ionic/angular';
 import { addIcons } from 'ionicons';
-import { 
-  chatbubble, 
-  ellipsisVertical, 
-  bulb, 
-  time, 
+import {
+  chatbubble,
+  ellipsisVertical,
+  bulb,
+  time,
   settings,
   person,
   checkmark,
   play,
-  pencil
+  pencil,
+  close
 } from 'ionicons/icons';
 import { HeaderToolbarComponent } from 'src/app/components/navigation/header-toolbar/header-toolbar.component';
 import { SupabaseService } from '../../services/supabase.service';
@@ -23,6 +24,7 @@ export interface Player {
   username: string;
   avatar?: string;
   ready: boolean;
+  isHost: boolean;
 }
 
 @Component({
@@ -32,25 +34,32 @@ export interface Player {
   imports: [CommonModule, IonicModule, HeaderToolbarComponent, FormsModule]
 })
 export class QuickPlayPage implements OnInit, OnDestroy {
-  // Game settings
+  // Game states
+  gameState: 'finding-match' | 'lobby' | 'starting' = 'finding-match';
+
+  // Game settings (controlled by host)
   gameName = 'Quick Play';
   gameMinutes = 15;
   hintsEnabled = false;
-  
+
   // Players
   currentPlayer: Player | null = null;
   opponent: Player | null = null;
-  
+  isHost = false;
+
   // UI state
   isReady = false;
-  canClickReady = false;
+  opponentReady = false;
   gameStarting = false;
+  matchmakingDots = '';
+  chatVisible = false;
 
   constructor(
     private router: Router,
     private supabaseService: SupabaseService,
     private alertController: AlertController,
     private popoverController: PopoverController,
+    private modalController: ModalController,
     private changeDetectorRef: ChangeDetectorRef
   ) {
     addIcons({
@@ -62,13 +71,14 @@ export class QuickPlayPage implements OnInit, OnDestroy {
       person,
       checkmark,
       play,
-      pencil
+      pencil,
+      close
     });
   }
 
   ngOnInit() {
     this.initializePlayer();
-    this.simulateOpponentJoining();
+    this.startMatchmaking();
   }
 
   ngOnDestroy() {
@@ -81,38 +91,62 @@ export class QuickPlayPage implements OnInit, OnDestroy {
         id: this.supabaseService.user.id,
         username: this.supabaseService.user.user_metadata?.['username'] || 'Player',
         avatar: '/assets/images/profile-avatar.png',
-        ready: false
+        ready: false,
+        isHost: false
       };
     }
   }
 
-  private simulateOpponentJoining() {
-    // Simulate opponent joining after 3 seconds
-    setTimeout(() => {
-      this.opponent = {
-        id: 'opponent-1',
-        username: 'ChessMaster',
-        avatar: '/assets/images/profile-avatar-large.png',
-        ready: false
-      };
-      this.canClickReady = true;
+  private startMatchmaking() {
+    // Animate the loading dots
+    const dotsInterval = setInterval(() => {
+      this.matchmakingDots = this.matchmakingDots.length >= 3 ? '' : this.matchmakingDots + '.';
       this.changeDetectorRef.detectChanges();
-    }, 3000);
+    }, 500);
+
+    // Simulate finding a match after 3-5 seconds
+    setTimeout(() => {
+      clearInterval(dotsInterval);
+      this.foundMatch();
+    }, 4000);
+  }
+
+  private foundMatch() {
+    // Randomly assign host (50/50 chance)
+    this.isHost = Math.random() > 0.5;
+
+    if (this.currentPlayer) {
+      this.currentPlayer.isHost = this.isHost;
+    }
+
+    // Create opponent
+    this.opponent = {
+      id: 'opponent-1',
+      username: 'ChessMaster',
+      avatar: '/assets/images/profile-avatar-large.png',
+      ready: false,
+      isHost: !this.isHost
+    };
+
+    // Switch to lobby state
+    this.gameState = 'lobby';
+    this.changeDetectorRef.detectChanges();
   }
 
   async toggleReady() {
-    if (!this.canClickReady || this.gameStarting) return;
+    if (this.gameState !== 'lobby' || this.gameStarting) return;
 
     this.isReady = !this.isReady;
     if (this.currentPlayer) {
       this.currentPlayer.ready = this.isReady;
     }
 
-    // Simulate opponent also getting ready
-    if (this.isReady && this.opponent) {
+    // Simulate opponent also getting ready after a delay
+    if (this.isReady && this.opponent && !this.opponent.ready) {
       setTimeout(() => {
         if (this.opponent) {
           this.opponent.ready = true;
+          this.opponentReady = true;
           this.changeDetectorRef.detectChanges();
           this.startGame();
         }
@@ -126,7 +160,8 @@ export class QuickPlayPage implements OnInit, OnDestroy {
     if (!this.currentPlayer?.ready || !this.opponent?.ready) return;
 
     this.gameStarting = true;
-    
+    this.gameState = 'starting';
+
     const alert = await this.alertController.create({
       header: 'Starting Game',
       message: 'Game will start in 3 seconds...',
@@ -160,6 +195,58 @@ export class QuickPlayPage implements OnInit, OnDestroy {
     });
   }
 
+  // Bottom Toolbar Actions
+  toggleChat() {
+    this.chatVisible = !this.chatVisible;
+    // TODO: Implement chat panel toggle
+    console.log('Chat toggled:', this.chatVisible);
+  }
+
+  toggleHints() {
+    if (!this.isHost) return;
+    this.hintsEnabled = !this.hintsEnabled;
+    this.changeDetectorRef.detectChanges();
+  }
+
+  async openTimeModal() {
+    if (!this.isHost) return;
+
+    const modal = await this.modalController.create({
+      component: TimeSelectionModal,
+      componentProps: {
+        currentMinutes: this.gameMinutes,
+        onTimeSelected: (minutes: number) => this.updateGameTime(minutes)
+      }
+    });
+
+    await modal.present();
+  }
+
+  async openSettingsModal() {
+    if (!this.isHost) return;
+
+    const modal = await this.modalController.create({
+      component: GameSettingsModal,
+      componentProps: {
+        currentName: this.gameName,
+        onNameChanged: (name: string) => this.updateGameName(name)
+      }
+    });
+
+    await modal.present();
+  }
+
+  private updateGameTime(minutes: number) {
+    this.gameMinutes = minutes;
+    this.changeDetectorRef.detectChanges();
+  }
+
+  private updateGameName(name: string) {
+    this.gameName = name;
+    this.changeDetectorRef.detectChanges();
+  }
+
+  // Legacy methods (keeping for compatibility)
   async openChatComingSoon() {
     const alert = await this.alertController.create({
       header: 'Chat Feature',
@@ -170,6 +257,16 @@ export class QuickPlayPage implements OnInit, OnDestroy {
   }
 
   async openMoreOptions(event: Event) {
+    if (!this.isHost) {
+      const alert = await this.alertController.create({
+        header: 'Game Settings',
+        message: 'Only the host can modify game settings.',
+        buttons: ['OK']
+      });
+      await alert.present();
+      return;
+    }
+
     const popover = await this.popoverController.create({
       component: MoreOptionsPopover,
       event: event,
@@ -193,27 +290,221 @@ export class QuickPlayPage implements OnInit, OnDestroy {
   }
 
   getGameStatus(): string {
-    if (!this.opponent) {
-      return 'Waiting for another player to join...';
+    if (this.gameState === 'finding-match') {
+      return `Finding match${this.matchmakingDots}`;
     }
 
-    if (this.gameStarting) {
+    if (this.gameState === 'starting') {
       return 'Starting game...';
     }
 
-    if (this.currentPlayer?.ready && this.opponent?.ready) {
+    if (this.isReady && this.opponentReady) {
       return 'Both players ready! Starting soon...';
     }
 
-    if (this.currentPlayer?.ready) {
+    if (this.isReady) {
       return 'You are ready. Waiting for opponent...';
     }
 
-    if (this.opponent?.ready) {
+    if (this.opponentReady) {
       return 'Opponent is ready. Click Ready to start!';
     }
 
     return 'Click Ready when you are prepared to play!';
+  }
+
+  getHostIndicator(): string {
+    if (this.isHost) {
+      return 'You are the host - you can modify game settings';
+    } else {
+      return 'You are the guest - host controls game settings';
+    }
+  }
+
+  canClickReady(): boolean {
+    return this.gameState === 'lobby' && !this.gameStarting;
+  }
+}
+
+// Time Selection Modal Component
+@Component({
+  selector: 'app-time-selection-modal',
+  template: `
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>Select Game Time</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="dismiss()">
+            <ion-icon name="close"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    
+    <ion-content class="time-modal-content">
+      <div class="time-options">
+        <ion-button 
+          *ngFor="let option of timeOptions" 
+          expand="block" 
+          fill="outline"
+          [color]="option.minutes === currentMinutes ? 'primary' : 'medium'"
+          (click)="selectTime(option.minutes)"
+          class="time-option">
+          <div class="time-info">
+            <h3>{{ option.label }}</h3>
+            <p>{{ option.minutes }} minutes</p>
+          </div>
+        </ion-button>
+      </div>
+      
+      <div class="custom-time">
+        <ion-item>
+          <ion-label position="stacked">Custom Minutes</ion-label>
+          <ion-input 
+            type="number" 
+            [(ngModel)]="customMinutes" 
+            min="1" 
+            max="60"
+            placeholder="Enter minutes">
+          </ion-input>
+        </ion-item>
+        <ion-button 
+          expand="block" 
+          (click)="selectTime(customMinutes)"
+          [disabled]="!customMinutes || customMinutes < 1 || customMinutes > 60">
+          Set Custom Time
+        </ion-button>
+      </div>
+    </ion-content>
+  `,
+  styles: [`
+    .time-modal-content {
+      padding: 20px;
+    }
+    
+    .time-options {
+      margin-bottom: 30px;
+    }
+    
+    .time-option {
+      margin-bottom: 12px;
+      height: auto;
+      
+      .time-info {
+        text-align: left;
+        padding: 8px 0;
+        
+        h3 {
+          margin: 0 0 4px;
+          font-weight: 600;
+        }
+        
+        p {
+          margin: 0;
+          font-size: 0.9rem;
+          opacity: 0.7;
+        }
+      }
+    }
+    
+    .custom-time {
+      border-top: 1px solid var(--ion-color-step-200);
+      padding-top: 20px;
+      
+      ion-button {
+        margin-top: 16px;
+      }
+    }
+  `],
+  imports: [IonicModule, CommonModule, FormsModule]
+})
+export class TimeSelectionModal {
+  currentMinutes: number = 15;
+  customMinutes: number = 15;
+  onTimeSelected: (minutes: number) => void = () => { };
+
+  timeOptions = [
+    { label: 'Bullet', minutes: 3 },
+    { label: 'Blitz', minutes: 5 },
+    { label: 'Rapid', minutes: 15 },
+    { label: 'Classical', minutes: 30 }
+  ];
+
+  constructor(private modalController: ModalController) { }
+
+  async dismiss() {
+    await this.modalController.dismiss();
+  }
+
+  async selectTime(minutes: number) {
+    if (minutes && minutes > 0 && minutes <= 60) {
+      this.onTimeSelected(minutes);
+      await this.modalController.dismiss();
+    }
+  }
+}
+
+// Game Settings Modal Component
+@Component({
+  selector: 'app-game-settings-modal',
+  template: `
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>Game Settings</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="dismiss()">
+            <ion-icon name="close"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    
+    <ion-content class="settings-modal-content">
+      <ion-item>
+        <ion-label position="stacked">Game Name</ion-label>
+        <ion-input 
+          [(ngModel)]="gameName" 
+          placeholder="Enter game name"
+          maxlength="30">
+        </ion-input>
+      </ion-item>
+      
+      <div class="modal-actions">
+        <ion-button 
+          expand="block" 
+          (click)="saveSettings()"
+          [disabled]="!gameName || gameName.trim().length === 0">
+          Save Settings
+        </ion-button>
+      </div>
+    </ion-content>
+  `,
+  styles: [`
+    .settings-modal-content {
+      padding: 20px;
+    }
+    
+    .modal-actions {
+      margin-top: 30px;
+    }
+  `],
+  imports: [IonicModule, CommonModule, FormsModule]
+})
+export class GameSettingsModal {
+  gameName: string = '';
+  onNameChanged: (name: string) => void = () => { };
+
+  constructor(private modalController: ModalController) { }
+
+  async dismiss() {
+    await this.modalController.dismiss();
+  }
+
+  async saveSettings() {
+    if (this.gameName && this.gameName.trim().length > 0) {
+      this.onNameChanged(this.gameName.trim());
+      await this.modalController.dismiss();
+    }
   }
 }
 
@@ -253,16 +544,16 @@ export class MoreOptionsPopover {
   gameName: string = '';
   gameMinutes: number = 15;
   hintsEnabled: boolean = false;
-  onUpdate: (settings: any) => void = () => {};
+  onUpdate: (settings: any) => void = () => { };
 
   constructor(
     private alertController: AlertController,
     private popoverController: PopoverController
-  ) {}
+  ) { }
 
   async editGameName() {
     await this.popoverController.dismiss();
-    
+
     const alert = await this.alertController.create({
       header: 'Set Name of Game',
       inputs: [
@@ -292,7 +583,7 @@ export class MoreOptionsPopover {
 
   async editGameTime() {
     await this.popoverController.dismiss();
-    
+
     const alert = await this.alertController.create({
       header: 'Custom Minutes',
       inputs: [
@@ -324,7 +615,7 @@ export class MoreOptionsPopover {
 
   async updatePlayTime() {
     await this.popoverController.dismiss();
-    
+
     const alert = await this.alertController.create({
       header: 'Update Play Time',
       inputs: [
