@@ -130,6 +130,11 @@ SELECT TO authenticated USING (auth.uid () = user_id);
 CREATE POLICY "Users can update their notifications" ON match_notifications FOR
 UPDATE TO authenticated USING (auth.uid () = user_id);
 
+CREATE POLICY "System can create notifications" ON match_notifications FOR
+INSERT
+WITH
+    CHECK (true);
+
 -- Function to automatically expire old invitations
 CREATE OR REPLACE FUNCTION expire_old_invitations()
 RETURNS TRIGGER AS $$
