@@ -10,19 +10,40 @@ import { User } from '@supabase/supabase-js';
 export class AuthService {
 	private isAuthenticated = new BehaviorSubject<boolean>(false);
 	private currentUser = new BehaviorSubject<User | null>(null);
+	private hasHandledCurrentUser = false; // Track if we've handled the current user
 
 	constructor(
 		private supabaseService: SupabaseService,
 		private router: Router
 	) {
 		// Subscribe to auth state changes
-		this.supabaseService.user$.subscribe(user => {
+		this.supabaseService.user$.subscribe(async user => {
+			console.log('Auth state change - User:', user ? `${user.id} (${user.email})` : 'null', 'HasHandled:', this.hasHandledCurrentUser);
+
 			this.currentUser.next(user);
 			this.isAuthenticated.next(!!user);
 
-			// Check and create user profile when user signs in
-			if (user) {
-				this.checkAuthState();
+			if (user && !this.hasHandledCurrentUser) {
+				// Mark that we're handling this user to prevent duplicate processing
+				this.hasHandledCurrentUser = true;
+				console.log('Starting user session handling in 2 seconds...');
+
+				// Wait a bit for the auth state to settle, then handle the user session
+				setTimeout(async () => {
+					try {
+						await this.handleUserSession(user);
+					} catch (error) {
+						console.error('Error handling user session:', error);
+						// Reset flag so we can try again if needed
+						this.hasHandledCurrentUser = false;
+					}
+				}, 2000); // Increased timeout to 2 seconds
+			} else if (!user) {
+				// Reset the flag when user logs out
+				console.log('User logged out, resetting hasHandledCurrentUser flag');
+				this.hasHandledCurrentUser = false;
+			} else if (user && this.hasHandledCurrentUser) {
+				console.log('User already handled, skipping session handling');
 			}
 		});
 	}
@@ -89,17 +110,15 @@ export class AuthService {
 	async checkAuthState() {
 		const user = this.supabaseService.user;
 		if (user) {
-			// Check if user profile exists in our database - use direct call here
-			// because we want to create the profile if it doesn't exist, not log out
-			const { data: profile, error } = await this.supabaseService.getUserProfile(user.id);
+			// Check if user profile exists in our database
+			// If it doesn't exist, trigger logout instead of creating it
+			const result = await this.safeUserOperation(
+				() => this.supabaseService.getUserProfile(user.id),
+				'check_auth_state'
+			);
 
-			if (error && error.code === 'PGRST116') {
-				// User profile doesn't exist, create it
-				console.log('User profile not found, creating new profile...');
-				await this.createUserProfile(user);
-			} else if (error) {
-				console.error('Error checking user profile:', error);
-			}
+			// The safeUserOperation will handle the logout if profile is missing
+			// No need to do anything else here
 		}
 	}
 
@@ -226,13 +245,20 @@ export class AuthService {
 			return true;
 		}
 
+		// Check HTTP status codes that indicate user/resource not found
+		if (error.status === 404 || error.status === 406 || error.status === 410) {
+			return true;
+		}
+
 		// Check error message patterns
 		const notFoundMessages = [
 			'no rows returned',
 			'user not found',
 			'profile not found',
 			'foreign key violation',
-			'violates foreign key constraint'
+			'violates foreign key constraint',
+			'not acceptable',
+			'resource not found'
 		];
 
 		const errorMessage = (error.message || '').toLowerCase();
@@ -278,6 +304,41 @@ export class AuthService {
 			}
 
 			throw error;
+		}
+	}
+
+	private async handleUserSession(user: User) {
+		console.log('Handling user session for:', user.id, 'Email:', user.email);
+
+		try {
+			// Check if user profile exists in our database
+			const { data: profile, error } = await this.supabaseService.getUserProfile(user.id);
+
+			if (error) {
+				console.log('Error getting user profile:', error);
+
+				if (error.code === 'PGRST116' || this.isUserNotFoundError(error)) {
+					// User profile doesn't exist, create it (this is likely a new sign-in)
+					console.log('User profile not found, creating new profile...');
+					const createResult = await this.createUserProfile(user);
+
+					if (createResult.error) {
+						console.error('Failed to create user profile:', createResult.error);
+						// If we can't create the profile, log the user out
+						await this.handleUserProfileNotFound(createResult.error, 'profile_creation_failed');
+					} else {
+						console.log('User profile created successfully!');
+					}
+				} else {
+					console.error('Unexpected error checking user profile:', error);
+				}
+			} else if (profile) {
+				console.log('User profile exists, session handled successfully. Profile:', profile.username);
+			} else {
+				console.log('No profile data returned but no error - this is unusual');
+			}
+		} catch (error) {
+			console.error('Exception in handleUserSession:', error);
 		}
 	}
 }
