@@ -8,4 +8,6 @@ export * from './chess-rank.service';
 export * from './match-history.service';
 export * from './nft.service';
 export * from './user-preferences.service';
-export * from './game.service'; 
+export * from './game.service';
+export * from './matchmaking.service';
+export * from './realtime-game.service'; 

@@ -1,0 +1,296 @@
+.multiplayer-container {
+  padding: 0 16px 16px;
+  max-height: 100vh;
+  overflow-y: auto;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 24px 0 16px;
+  
+  ion-icon {
+    font-size: 24px;
+    color: var(--ion-color-primary);
+  }
+  
+  h2 {
+    margin: 0;
+    color: var(--ion-color-primary);
+    font-weight: 600;
+    font-size: 1.2rem;
+  }
+}
+
+.matchmaking-section {
+  background: var(--ion-color-light);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  border: 1px solid var(--ion-color-step-100);
+  
+  .section-header {
+    margin-top: 0;
+  }
+}
+
+.time-control-selection {
+  margin-bottom: 24px;
+  
+  h3 {
+    margin: 0 0 12px;
+    color: var(--ion-color-dark);
+    font-size: 1rem;
+    font-weight: 500;
+  }
+}
+
+.time-control-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  
+  ion-button {
+    --border-radius: 8px;
+    margin: 0;
+    font-size: 0.85rem;
+  }
+}
+
+.matchmaking-controls {
+  ion-button {
+    --border-radius: 12px;
+    height: 48px;
+    font-weight: 600;
+  }
+}
+
+.matchmaking-active {
+  text-align: center;
+  padding: 20px 0;
+  
+  .matchmaking-spinner {
+    margin-bottom: 16px;
+    
+    ion-spinner {
+      width: 48px;
+      height: 48px;
+    }
+  }
+  
+  h3 {
+    margin: 0 0 8px;
+    color: var(--ion-color-primary);
+    font-weight: 600;
+  }
+  
+  p {
+    margin: 0 0 16px;
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--ion-color-medium);
+  }
+}
+
+.lobby-tabs {
+  margin: 20px 0;
+  --background: var(--ion-color-light);
+  --border-radius: 8px;
+  
+  ion-segment-button {
+    --color: var(--ion-color-medium);
+    --color-checked: var(--ion-color-primary);
+    --indicator-color: var(--ion-color-primary);
+    
+    ion-icon {
+      margin-right: 6px;
+    }
+  }
+}
+
+.players-section {
+  margin-bottom: 24px;
+}
+
+.player-item {
+  --inner-padding-end: 16px;
+  --inner-padding-start: 16px;
+  --padding-start: 0;
+  --padding-end: 0;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--ion-color-step-100);
+  
+  ion-avatar {
+    width: 48px;
+    height: 48px;
+  }
+  
+  ion-label {
+    h2 {
+      margin: 0 0 4px;
+      font-weight: 600;
+      color: var(--ion-color-dark);
+    }
+    
+    p {
+      margin: 0;
+      font-size: 0.85rem;
+    }
+  }
+}
+
+.player-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  
+  .rating {
+    font-weight: 600;
+    color: var(--ion-color-primary);
+  }
+  
+  .rank {
+    background: var(--ion-color-primary);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  
+  .rating-diff {
+    font-size: 0.8rem;
+    color: var(--ion-color-medium);
+  }
+}
+
+.game-record {
+  color: var(--ion-color-medium) !important;
+  font-size: 0.8rem !important;
+}
+
+.invitations-section {
+  margin-bottom: 24px;
+}
+
+.invitation-item {
+  --inner-padding-end: 16px;
+  --inner-padding-start: 16px;
+  --padding-start: 0;
+  --padding-end: 0;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  
+  &.received {
+    border: 1px solid var(--ion-color-success);
+    background: var(--ion-color-success-tint);
+  }
+  
+  &.sent {
+    border: 1px solid var(--ion-color-warning);
+    background: var(--ion-color-warning-tint);
+  }
+  
+  ion-avatar {
+    width: 44px;
+    height: 44px;
+  }
+  
+  ion-label {
+    h2 {
+      margin: 0 0 4px;
+      font-weight: 600;
+      color: var(--ion-color-dark);
+    }
+    
+    p {
+      margin: 0 0 2px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      
+      ion-icon {
+        font-size: 14px;
+      }
+    }
+  }
+}
+
+.invitation-time {
+  color: var(--ion-color-medium) !important;
+  font-size: 0.75rem !important;
+}
+
+.invitation-buttons {
+  display: flex;
+  gap: 8px;
+  
+  ion-button {
+    width: 36px;
+    height: 36px;
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--ion-color-medium);
+  
+  ion-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+  }
+  
+  h3 {
+    margin: 0 0 8px;
+    color: var(--ion-color-medium-shade);
+  }
+  
+  p {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+}
+
+// Mobile responsive
+@media (max-width: 768px) {
+  .time-control-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .invitation-buttons {
+    flex-direction: column;
+    gap: 4px;
+    
+    ion-button {
+      width: 32px;
+      height: 32px;
+    }
+  }
+}
+
+// Dark mode adjustments
+@media (prefers-color-scheme: dark) {
+  .matchmaking-section {
+    background: var(--ion-color-step-50);
+    border-color: var(--ion-color-step-200);
+  }
+  
+  .player-item,
+  .invitation-item {
+    border-color: var(--ion-color-step-200);
+  }
+  
+  .invitation-item.received {
+    background: rgba(var(--ion-color-success-rgb), 0.1);
+  }
+  
+  .invitation-item.sent {
+    background: rgba(var(--ion-color-warning-rgb), 0.1);
+  }
+} 

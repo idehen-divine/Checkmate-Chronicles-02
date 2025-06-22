@@ -7,7 +7,9 @@ import {
 	reloadOutline,
 	bulbOutline,
 	closeCircleOutline,
-	chatbubbleEllipsesOutline
+	chatbubbleEllipsesOutline,
+	timeOutline,
+	settingsOutline
 } from 'ionicons/icons';
 
 @Component({
@@ -35,7 +37,9 @@ export class GameToolbarComponent {
 			'reload-outline': reloadOutline,
 			'bulb-outline': bulbOutline,
 			'close-circle-outline': closeCircleOutline,
-			'chatbubble-ellipses-outline': chatbubbleEllipsesOutline
+			'chatbubble-ellipses-outline': chatbubbleEllipsesOutline,
+			'time-outline': timeOutline,
+			'settings-outline': settingsOutline
 		});
 	}
 
@@ -61,5 +65,68 @@ export class GameToolbarComponent {
 
 	onReplayClick() {
 		this.replayClick.emit();
+	}
+}
+
+// New Lobby Toolbar Component
+@Component({
+	selector: 'app-lobby-toolbar',
+	template: `
+		<div class="game-action-bar">
+			<button class="action-btn" (click)="onChatClick()" [class.active]="chatActive">
+				<ion-icon name="chatbubble-ellipses-outline"></ion-icon>
+				<span>Chat</span>
+			</button>
+			<button class="action-btn" (click)="onHintClick()" [disabled]="!isHost" [class.active]="hintsEnabled">
+				<ion-icon name="bulb-outline"></ion-icon>
+				<span>Hint</span>
+			</button>
+			<button class="action-btn" (click)="onTimeClick()" [disabled]="!isHost">
+				<ion-icon name="time-outline"></ion-icon>
+				<span>Time</span>
+			</button>
+			<button class="action-btn" (click)="onSettingsClick()" [disabled]="!isHost">
+				<ion-icon name="settings-outline"></ion-icon>
+				<span>Settings</span>
+			</button>
+		</div>
+	`,
+	styleUrls: ['./game-toolbar.component.scss'],
+	imports: [CommonModule, IonicModule],
+	standalone: true
+})
+export class LobbyToolbarComponent {
+	@Input() isHost: boolean = false;
+	@Input() chatActive: boolean = false;
+	@Input() hintsEnabled: boolean = false;
+
+	@Output() chatClick = new EventEmitter<void>();
+	@Output() hintClick = new EventEmitter<void>();
+	@Output() timeClick = new EventEmitter<void>();
+	@Output() settingsClick = new EventEmitter<void>();
+
+	constructor() {
+		addIcons({
+			'bulb-outline': bulbOutline,
+			'chatbubble-ellipses-outline': chatbubbleEllipsesOutline,
+			'time-outline': timeOutline,
+			'settings-outline': settingsOutline
+		});
+	}
+
+	onChatClick() {
+		this.chatClick.emit();
+	}
+
+	onHintClick() {
+		this.hintClick.emit();
+	}
+
+	onTimeClick() {
+		this.timeClick.emit();
+	}
+
+	onSettingsClick() {
+		this.settingsClick.emit();
 	}
 }

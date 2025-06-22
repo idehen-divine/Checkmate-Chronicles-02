@@ -10,6 +10,15 @@ export interface Database {
                     algorand_wallet_address?: string;
                     algorand_private_key?: string;
                     algorand_secret_phrase?: string;
+                    current_elo: number;
+                    highest_elo: number;
+                    current_rank_id?: string;
+                    wins: number;
+                    losses: number;
+                    draws: number;
+                    games_played: number;
+                    is_online?: boolean;
+                    last_seen?: string;
                     sounds_enabled?: boolean;
                     hints_enabled?: boolean;
                     legal_moves_enabled?: boolean;
@@ -25,6 +34,15 @@ export interface Database {
                     algorand_wallet_address?: string;
                     algorand_private_key?: string;
                     algorand_secret_phrase?: string;
+                    current_elo?: number;
+                    highest_elo?: number;
+                    current_rank_id?: string;
+                    wins?: number;
+                    losses?: number;
+                    draws?: number;
+                    games_played?: number;
+                    is_online?: boolean;
+                    last_seen?: string;
                     sounds_enabled?: boolean;
                     hints_enabled?: boolean;
                     legal_moves_enabled?: boolean;
@@ -40,6 +58,15 @@ export interface Database {
                     algorand_wallet_address?: string;
                     algorand_private_key?: string;
                     algorand_secret_phrase?: string;
+                    current_elo?: number;
+                    highest_elo?: number;
+                    current_rank_id?: string;
+                    wins?: number;
+                    losses?: number;
+                    draws?: number;
+                    games_played?: number;
+                    is_online?: boolean;
+                    last_seen?: string;
                     sounds_enabled?: boolean;
                     hints_enabled?: boolean;
                     legal_moves_enabled?: boolean;
@@ -84,6 +111,10 @@ export interface Database {
                     player_id: string;
                     move_notation: string;
                     timestamp: string;
+                    from_square?: string;
+                    to_square?: string;
+                    fen_after?: string;
+                    time_left?: number;
                 };
                 Insert: {
                     id?: string;
@@ -91,6 +122,10 @@ export interface Database {
                     player_id: string;
                     move_notation: string;
                     timestamp?: string;
+                    from_square?: string;
+                    to_square?: string;
+                    fen_after?: string;
+                    time_left?: number;
                 };
                 Update: {
                     id?: string;
@@ -98,6 +133,10 @@ export interface Database {
                     player_id?: string;
                     move_notation?: string;
                     timestamp?: string;
+                    from_square?: string;
+                    to_square?: string;
+                    fen_after?: string;
+                    time_left?: number;
                 };
             };
             chat: {
