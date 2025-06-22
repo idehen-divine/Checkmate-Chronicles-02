@@ -96,19 +96,72 @@ export class AuthService {
 
 	private async createUserProfile(user: User) {
 		const username = user.user_metadata?.['full_name'] ||
+			user.user_metadata?.['name'] ||
 			user.email?.split('@')[0] ||
 			`user_${user.id.slice(0, 8)}`;
 
-		const { data, error } = await this.supabaseService.createUserProfile({
+		// Create user profile - user_settings will be created automatically by trigger
+		const { data: profileData, error: profileError } = await this.supabaseService.createUserProfile({
 			id: user.id,
-			email: user.email!,
-			username: username
+			username: username,
+			elo: 0, // Start at 0 as per new requirements
+			wins: 0,
+			losses: 0,
+			draws: 0,
+			avatar_url: user.user_metadata?.['avatar_url'] || null,
+			is_online: true,
+			last_seen_method: 'login',
+			status: 'active' // Default to active status
+		});
+
+		if (profileError) {
+			console.error('Error creating user profile:', profileError);
+			return { data: null, error: profileError };
+		}
+
+		// Note: User settings are now created automatically by database trigger
+		// No need to manually create them
+
+		return { data: profileData, error: profileError };
+	}
+
+	async updateOnlineStatus(isOnline: boolean, method: string = 'unknown') {
+		const user = this.supabaseService.user;
+		if (!user) return;
+
+		const { error } = await this.supabaseService.updateUserProfile(user.id, {
+			is_online: isOnline,
+			last_seen_at: new Date().toISOString(),
+			last_seen_method: method
 		});
 
 		if (error) {
-			console.error('Error creating user profile:', error);
+			console.error('Error updating online status:', error);
 		}
+	}
 
-		return { data, error };
+	async getUserProfile() {
+		const user = this.supabaseService.user;
+		if (!user) return { data: null, error: new Error('No user found') };
+
+		return await this.supabaseService.getUserProfile(user.id);
+	}
+
+	async getUserSettings() {
+		const user = this.supabaseService.user;
+		if (!user) return { data: null, error: new Error('No user found') };
+
+		return await this.supabaseService.getUserSettings(user.id);
+	}
+
+	async updateUserSettings(settings: any) {
+		const user = this.supabaseService.user;
+		if (!user) return { data: null, error: new Error('No user found') };
+
+		return await this.supabaseService.updateUserSettings(user.id, settings);
+	}
+
+	getCurrentUser(): User | null {
+		return this.supabaseService.user;
 	}
 }

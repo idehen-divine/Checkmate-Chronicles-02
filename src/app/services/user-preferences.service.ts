@@ -5,11 +5,10 @@ import * as PreferencesUtils from '../utils/preferences.util';
 
 export interface UserPreferences {
     sounds_enabled: boolean;
-    hints_enabled: boolean;
-    legal_moves_enabled: boolean;
-    game_invites_enabled: boolean;
-    nft_mints_enabled: boolean;
-    announcements_enabled: boolean;
+    notifications_enabled: boolean;
+    theme: 'light' | 'dark' | 'system';
+    allow_friend_challenges: boolean;
+    custom_data: any;
 }
 
 @Injectable({
@@ -24,7 +23,7 @@ export class UserPreferencesService {
             return of(PreferencesUtils.getDefaultPreferences());
         }
 
-        return from(this.supabaseService.getUserProfile(user.id)).pipe(
+        return from(this.supabaseService.getUserSettings(user.id)).pipe(
             map(({ data, error }) => {
                 if (error || !data) {
                     return PreferencesUtils.getDefaultPreferences();
@@ -33,11 +32,10 @@ export class UserPreferencesService {
                 // Merge with defaults to handle any missing fields
                 return PreferencesUtils.mergeWithDefaults({
                     sounds_enabled: data.sounds_enabled,
-                    hints_enabled: data.hints_enabled,
-                    legal_moves_enabled: data.legal_moves_enabled,
-                    game_invites_enabled: data.game_invites_enabled,
-                    nft_mints_enabled: data.nft_mints_enabled,
-                    announcements_enabled: data.announcements_enabled
+                    notifications_enabled: data.notifications_enabled,
+                    theme: data.theme,
+                    allow_friend_challenges: data.allow_friend_challenges,
+                    custom_data: data.custom_data
                 });
             }),
             catchError(() => of(PreferencesUtils.getDefaultPreferences()))
@@ -52,7 +50,7 @@ export class UserPreferencesService {
         }
 
         try {
-            const { data, error } = await this.supabaseService.updateUserPreferences(user.id, preferences);
+            const { data, error } = await this.supabaseService.updateUserSettings(user.id, preferences);
             if (error) {
                 return { success: false, error: error.message };
             }

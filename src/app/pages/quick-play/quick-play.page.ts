@@ -19,8 +19,13 @@ import {
 import { HeaderToolbarComponent } from 'src/app/components/navigation/header-toolbar/header-toolbar.component';
 import { LobbyToolbarComponent } from 'src/app/components/navigation/game-toolbar/game-toolbar.component';
 import { SupabaseService } from '../../services/supabase.service';
-import { MatchmakingService } from '../../services/matchmaking.service';
+import { MatchmakingService, GameType } from '../../services/matchmaking.service';
 import { Subscription } from 'rxjs';
+import {
+  IonContent, IonHeader, IonToolbar, IonTitle, IonButton, IonIcon, IonLabel,
+  IonCard, IonCardHeader, IonCardTitle, IonCardContent, IonItem, IonList,
+  IonButtons, IonInput, IonCheckbox, IonPopover, IonModal
+} from '@ionic/angular/standalone';
 
 export interface Player {
   id: string;
@@ -135,12 +140,9 @@ export class QuickPlayPage implements OnInit, OnDestroy {
     });
 
     // Join the matchmaking queue
-    const timeControl = {
-      initial_time: this.gameMinutes * 60, // Convert to seconds
-      increment: 5 // 5 second increment
-    };
+    const gameType = this.getGameTypeFromMinutes(this.gameMinutes);
 
-    this.matchmakingService.joinMatchmakingQueue(timeControl).catch(error => {
+    this.matchmakingService.joinMatchmakingQueue(gameType).catch(error => {
       console.error('Error joining matchmaking queue:', error);
       clearInterval(dotsInterval);
       this.showMatchmakingError();
@@ -366,7 +368,7 @@ export class QuickPlayPage implements OnInit, OnDestroy {
     if (!this.isHost) return;
 
     const modal = await this.modalController.create({
-      component: TimeSelectionModal,
+      component: TimeSelectionComponent,
       componentProps: {
         currentMinutes: this.gameMinutes,
         onTimeSelected: (minutes: number) => this.updateGameTime(minutes)
@@ -380,7 +382,7 @@ export class QuickPlayPage implements OnInit, OnDestroy {
     if (!this.isHost) return;
 
     const modal = await this.modalController.create({
-      component: GameSettingsModal,
+      component: GameSettingsComponent,
       componentProps: {
         currentName: this.gameName,
         onNameChanged: (name: string) => this.updateGameName(name)
@@ -428,7 +430,7 @@ export class QuickPlayPage implements OnInit, OnDestroy {
     }
 
     const popover = await this.popoverController.create({
-      component: MoreOptionsPopover,
+      component: MoreOptionsComponent,
       event: event,
       translucent: true,
       componentProps: {
@@ -508,6 +510,18 @@ export class QuickPlayPage implements OnInit, OnDestroy {
       await alert.present();
     } else {
       this.router.navigate(['/dashboard']);
+    }
+  }
+
+  private getGameTypeFromMinutes(minutes: number): GameType {
+    if (minutes <= 3) {
+      return 'bullet';
+    } else if (minutes <= 10) {
+      return 'blitz';
+    } else if (minutes <= 30) {
+      return 'rapid';
+    } else {
+      return 'classical';
     }
   }
 }
@@ -604,7 +618,7 @@ export class QuickPlayPage implements OnInit, OnDestroy {
   `],
   imports: [IonicModule, CommonModule, FormsModule]
 })
-export class TimeSelectionModal {
+export class TimeSelectionComponent {
   currentMinutes: number = 15;
   customMinutes: number = 15;
   onTimeSelected: (minutes: number) => void = () => { };
@@ -676,7 +690,7 @@ export class TimeSelectionModal {
   `],
   imports: [IonicModule, CommonModule, FormsModule]
 })
-export class GameSettingsModal {
+export class GameSettingsComponent {
   gameName: string = '';
   onNameChanged: (name: string) => void = () => { };
 
@@ -726,7 +740,7 @@ export class GameSettingsModal {
   `],
   imports: [IonicModule, CommonModule]
 })
-export class MoreOptionsPopover {
+export class MoreOptionsComponent {
   gameName: string = '';
   gameMinutes: number = 15;
   hintsEnabled: boolean = false;

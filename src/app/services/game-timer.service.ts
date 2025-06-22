@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, interval, Subscription } from 'rxjs';
 import { take } from 'rxjs/operators';
 import * as GameTimerUtils from '../utils/game-timer.util';
+import { OnDestroy } from '@angular/core';
 
 export interface TimerState {
     player1Time: number;
@@ -15,7 +16,7 @@ export interface TimerState {
 @Injectable({
     providedIn: 'root'
 })
-export class GameTimerService {
+export class GameTimerService implements OnDestroy {
     private timerState = new BehaviorSubject<TimerState>({
         player1Time: 900, // 15 minutes default
         player2Time: 900,

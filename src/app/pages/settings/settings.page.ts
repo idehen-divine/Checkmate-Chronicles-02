@@ -44,8 +44,17 @@ export class SettingsPage implements OnInit, OnDestroy, NavigationComponent {
 	isLoadingProfile = true;
 	private subscriptions: Subscription[] = [];
 
-	// Game preferences
+	// User preferences (from database)
 	soundsEnabled = true;
+	notificationsEnabled = true;
+	theme: 'light' | 'dark' | 'system' = 'system';
+	allowFriendChallenges = true;
+
+	// Legacy UI preferences (can be moved to custom_data)
+	soundEnabled: boolean = true;
+	darkModeEnabled: boolean = false;
+
+	// Game preferences
 	hintsEnabled = true;
 	legalMovesEnabled = true;
 
@@ -54,9 +63,6 @@ export class SettingsPage implements OnInit, OnDestroy, NavigationComponent {
 	nftMintsEnabled = true;
 	announcementsEnabled = true;
 
-	// Settings state
-	notificationsEnabled: boolean = true;
-	soundEnabled: boolean = true;	darkModeEnabled: boolean = true;
 	// Navigation utility
 	private navigationMethods: ReturnType<typeof createNavigationMixin>;
 
@@ -112,11 +118,16 @@ export class SettingsPage implements OnInit, OnDestroy, NavigationComponent {
 		const preferencesSub = this.userPreferencesService.getUserPreferences().subscribe({
 			next: (preferences) => {
 				this.soundsEnabled = preferences.sounds_enabled;
-				this.hintsEnabled = preferences.hints_enabled;
-				this.legalMovesEnabled = preferences.legal_moves_enabled;
-				this.gameInvitesEnabled = preferences.game_invites_enabled;
-				this.nftMintsEnabled = preferences.nft_mints_enabled;
-				this.announcementsEnabled = preferences.announcements_enabled;
+				this.notificationsEnabled = preferences.notifications_enabled;
+				this.theme = preferences.theme;
+				this.allowFriendChallenges = preferences.allow_friend_challenges;
+				// Store other preferences in legacy properties for backward compatibility
+				const customData = preferences.custom_data || {};
+				this.hintsEnabled = customData.hints_enabled || true;
+				this.legalMovesEnabled = customData.legal_moves_enabled || true;
+				this.gameInvitesEnabled = customData.game_invites_enabled || true;
+				this.nftMintsEnabled = customData.nft_mints_enabled || true;
+				this.announcementsEnabled = customData.announcements_enabled || true;
 			},
 			error: (error) => {
 				console.error('Error loading user preferences:', error);
@@ -126,13 +137,20 @@ export class SettingsPage implements OnInit, OnDestroy, NavigationComponent {
 	}
 
 	private async updatePreferences() {
-		const preferences = {
-			sounds_enabled: this.soundsEnabled,
+		const customData = {
 			hints_enabled: this.hintsEnabled,
 			legal_moves_enabled: this.legalMovesEnabled,
 			game_invites_enabled: this.gameInvitesEnabled,
 			nft_mints_enabled: this.nftMintsEnabled,
 			announcements_enabled: this.announcementsEnabled
+		};
+
+		const preferences = {
+			sounds_enabled: this.soundsEnabled,
+			notifications_enabled: this.notificationsEnabled,
+			theme: this.theme,
+			allow_friend_challenges: this.allowFriendChallenges,
+			custom_data: customData
 		};
 
 		const result = await this.userPreferencesService.updateUserPreferences(preferences);
