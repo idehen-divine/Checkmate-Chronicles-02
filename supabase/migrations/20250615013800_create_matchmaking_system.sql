@@ -112,8 +112,8 @@ UPDATE TO authenticated USING (
 CREATE POLICY "Users can delete their sent invitations" ON game_invitations FOR DELETE TO authenticated USING (auth.uid () = from_user_id);
 
 -- Create policies for matchmaking_queue table
-CREATE POLICY "Users can read their own queue entry" ON matchmaking_queue FOR
-SELECT TO authenticated USING (auth.uid () = user_id);
+CREATE POLICY "Users can read all queue entries for matchmaking" ON matchmaking_queue FOR
+SELECT TO authenticated USING (true);
 
 CREATE POLICY "Users can create their own queue entry" ON matchmaking_queue FOR
 INSERT
