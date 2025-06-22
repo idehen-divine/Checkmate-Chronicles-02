@@ -87,11 +87,16 @@ export class MatchmakingService {
         const user = this.supabaseService.user;
         if (!user) throw new Error('User not authenticated');
 
+        console.log(`👤 User joining queue: ${user.id}`);
+
         // Ensure user profile exists
         let { data: userProfile, error: profileError } = await this.supabaseService.getUserProfile(user.id);
 
+        console.log(`📋 User profile check result:`, { userProfile, profileError });
+
         if (profileError && profileError.code === 'PGRST116') {
             // User profile doesn't exist, create it
+            console.log(`🆕 Creating new user profile for ${user.id}...`);
             const newProfile = {
                 id: user.id,
                 email: user.email || '',
@@ -105,29 +110,41 @@ export class MatchmakingService {
                 is_online: true
             };
 
+            console.log(`🆕 New profile data:`, newProfile);
+
             const { data: createdProfile, error: createError } = await this.supabaseService.createUserProfile(newProfile);
 
             if (createError) {
-                console.error('Error creating user profile:', createError);
+                console.error('❌ Error creating user profile:', createError);
                 throw new Error('Failed to create user profile');
             }
 
+            console.log(`✅ User profile created successfully:`, createdProfile);
             userProfile = createdProfile;
         } else if (profileError) {
-            console.error('Error getting user profile:', profileError);
+            console.error('❌ Error getting user profile:', profileError);
             throw profileError;
+        } else {
+            console.log(`✅ User profile found:`, userProfile);
         }
 
         const elo = userProfile?.current_elo || 1200;
 
         // Update online status
-        await this.supabaseService.db
+        console.log(`🌐 Setting user ${user.id} as online...`);
+        const { error: onlineError } = await this.supabaseService.db
             .from('users')
             .update({
                 is_online: true,
                 last_seen: new Date().toISOString()
             })
             .eq('id', user.id);
+
+        if (onlineError) {
+            console.error('❌ Error setting online status:', onlineError);
+        } else {
+            console.log(`✅ User set as online successfully`);
+        }
 
         // Remove only THIS user's existing queue entry (not all entries)
         console.log('Clearing this user\'s existing matchmaking queue entry...');
@@ -153,6 +170,21 @@ export class MatchmakingService {
 
         console.log('Successfully joined matchmaking queue!');
         this.queueStatusSubject.next(true);
+
+        // Verify user record exists in database before starting matchmaking
+        console.log(`🔍 Verifying user record exists in database...`);
+        const { data: verifyUser, error: verifyError } = await this.supabaseService.db
+            .from('users')
+            .select('id, username, is_online, current_elo')
+            .eq('id', user.id)
+            .single();
+
+        if (verifyError || !verifyUser) {
+            console.error('❌ User verification failed:', verifyError);
+            console.error('❌ This will cause matchmaking to fail due to inner join');
+        } else {
+            console.log(`✅ User record verified:`, verifyUser);
+        }
 
         // Show current queue status for debugging
         await this.getQueueStatus();
@@ -184,37 +216,97 @@ export class MatchmakingService {
     private async startMatchmaking(userId: string, userElo: number, timeControl: any): Promise<void> {
         console.log(`🔍 Starting matchmaking for user ${userId} with ELO ${userElo}...`);
 
-        // Debug: Show all users in queue first
+        // First, get all users in queue with basic info
         const { data: allInQueue, error: allQueueError } = await this.supabaseService.db
             .from('matchmaking_queue')
             .select('*');
-        console.log(`🔍 ALL users in queue:`, allInQueue);
 
-        // Look for opponents with similar ELO (±200 points)
-        const { data: opponents, error } = await this.supabaseService.db
+        console.log(`🔍 ALL users in queue (raw):`, allInQueue);
+        console.log(`🔍 User IDs in queue (raw):`, allInQueue?.map(u => u.user_id));
+
+        // Now get user details for all queue users
+        if (allInQueue && allInQueue.length > 0) {
+            const userIds = allInQueue.map(u => u.user_id);
+            console.log(`🔍 Looking up user IDs in users table:`, userIds);
+            
+            const { data: usersData, error: usersError } = await this.supabaseService.db
+                .from('users')
+                .select('id, username, is_online, current_elo')
+                .in('id', userIds);
+
+            console.log(`🔍 Users table query error:`, usersError);
+            console.log(`🔍 Users table data for queue users:`, usersData);
+            console.log(`🔍 User IDs found in users table:`, usersData?.map(u => u.id));
+            console.log(`🔍 Missing user IDs:`, userIds.filter(id => !usersData?.some(u => u.id === id)));
+            
+            // Combine queue data with user data
+            const queueWithUsers = allInQueue.map(queueEntry => {
+                const userData = usersData?.find(u => u.id === queueEntry.user_id);
+                return {
+                    ...queueEntry,
+                    user_data: userData
+                };
+            });
+
+            console.log(`🔍 Combined queue + user data:`, queueWithUsers);
+            console.log(`🔍 Online status of all queue users:`, queueWithUsers.map(u => ({
+                user_id: u.user_id,
+                username: u.user_data?.username || 'NO_USER_DATA',
+                is_online: u.user_data?.is_online || false,
+                elo: u.user_data?.current_elo || 'NO_ELO'
+            })));
+        }
+
+        // Look for opponents with similar ELO (±200 points) who are ONLINE
+        // Use a simpler approach: get all potential opponents first, then filter
+        const { data: potentialOpponents, error } = await this.supabaseService.db
             .from('matchmaking_queue')
-            .select(`
-                id,
-                user_id,
-                elo_rating,
-                time_control,
-                created_at
-            `)
+            .select('*')
             .neq('user_id', userId)
             .gte('elo_rating', userElo - 200)
             .lte('elo_rating', userElo + 200)
-            .order('created_at', { ascending: true })
-            .limit(1);
+            .order('created_at', { ascending: true });
 
         if (error) {
-            console.error('❌ Error finding opponents:', error);
+            console.error('❌ Error finding potential opponents:', error);
             return;
         }
 
-        console.log(`📊 Found ${opponents?.length || 0} potential opponents:`, opponents);
+        console.log(`🔍 Potential opponents (before online filter):`, potentialOpponents);
+        console.log(`🔍 Potential opponent user IDs:`, potentialOpponents?.map(o => o.user_id));
 
-        if (opponents && opponents.length > 0) {
-            const opponent = opponents[0];
+        // Now check which of these potential opponents are online
+        let onlineOpponents: any[] = [];
+        if (potentialOpponents && potentialOpponents.length > 0) {
+            const opponentIds = potentialOpponents.map(o => o.user_id);
+            console.log(`🔍 Checking online status for opponent IDs:`, opponentIds);
+            
+            const { data: opponentUsers, error: opponentUsersError } = await this.supabaseService.db
+                .from('users')
+                .select('id, username, is_online')
+                .in('id', opponentIds)
+                .eq('is_online', true);
+
+            console.log(`🔍 Online opponents query error:`, opponentUsersError);
+            console.log(`🔍 Online users found:`, opponentUsers);
+            console.log(`🔍 Online user IDs:`, opponentUsers?.map(u => u.id));
+
+            if (!opponentUsersError && opponentUsers) {
+                onlineOpponents = potentialOpponents.filter(opponent =>
+                    opponentUsers.some(user => user.id === opponent.user_id)
+                );
+                console.log(`🔍 Filtered online opponents:`, onlineOpponents);
+            } else {
+                console.log(`❌ Error or no online users found`);
+            }
+        }
+
+        console.log(`📊 Found ${onlineOpponents?.length || 0} online opponents:`, onlineOpponents);
+        console.log(`📊 Online opponent user IDs:`, onlineOpponents?.map(o => o.user_id));
+
+        if (onlineOpponents && onlineOpponents.length > 0) {
+            const opponent = onlineOpponents[0];
+
             console.log(`🎯 Checking opponent compatibility:`, {
                 opponentId: opponent.user_id,
                 opponentElo: opponent.elo_rating,
@@ -234,7 +326,7 @@ export class MatchmakingService {
                 console.log('❌ Time controls not compatible, continuing search...');
             }
         } else {
-            console.log('⏳ No opponents found, will retry in 3 seconds...');
+            console.log('⏳ No online opponents found, will retry in 3 seconds...');
         }
 
         // If no match found, set up a timeout to try again (but only if still in queue)

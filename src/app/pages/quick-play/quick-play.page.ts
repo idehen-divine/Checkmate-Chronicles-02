@@ -41,7 +41,7 @@ export class QuickPlayPage implements OnInit, OnDestroy {
   gameState: 'finding-match' | 'lobby' | 'starting' = 'finding-match';
 
   // Game settings (controlled by host)
-  gameName = 'Quick Play';
+  gameName = 'Quick-Play';
   gameMinutes = 15;
   hintsEnabled = false;
 
@@ -49,6 +49,9 @@ export class QuickPlayPage implements OnInit, OnDestroy {
   currentPlayer: Player | null = null;
   opponent: Player | null = null;
   isHost = false;
+
+  // Game ID from matchmaking
+  gameId: string | null = null;
 
   // UI state
   isReady = false;
@@ -153,9 +156,86 @@ export class QuickPlayPage implements OnInit, OnDestroy {
   }
 
   private async onMatchFound(gameId: string) {
-    // For now, simulate finding a match and creating a lobby
-    // In a real implementation, you'd get the opponent's details from the game
-    this.foundMatch();
+    console.log('🎮 Match found! Game ID:', gameId);
+
+    // Store the game ID for navigation
+    this.gameId = gameId;
+
+    try {
+      // Get game details to find opponent
+      const { data: game, error } = await this.supabaseService.db
+        .from('games')
+        .select(`
+          *,
+          player1:users!player1_id(id, username),
+          player2:users!player2_id(id, username)
+        `)
+        .eq('id', gameId)
+        .single();
+
+      if (error || !game) {
+        console.error('Error loading game details:', error);
+        this.showMatchmakingError();
+        return;
+      }
+
+      console.log('🎯 Game data loaded:', game);
+
+      // Validate game data
+      if (!game.player1 || !game.player2) {
+        console.error('❌ Invalid game data - missing players:', { player1: game.player1, player2: game.player2 });
+        this.showMatchmakingError();
+        return;
+      }
+
+      // Determine who is the opponent
+      const currentUserId = this.supabaseService.user?.id;
+      let opponentData;
+
+      if (game.player1.id === currentUserId) {
+        opponentData = game.player2;
+        this.isHost = true;
+      } else {
+        opponentData = game.player1;
+        this.isHost = false;
+      }
+
+      console.log('👥 Player assignment:', {
+        currentUserId,
+        player1: game.player1,
+        player2: game.player2,
+        opponentData,
+        isHost: this.isHost
+      });
+
+      // Set up current player
+      if (this.currentPlayer) {
+        this.currentPlayer.isHost = this.isHost;
+      }
+
+      // Set up opponent
+      this.opponent = {
+        id: opponentData.id,
+        username: opponentData.username,
+        avatar: '/assets/images/profile-avatar-large.png',
+        ready: false,
+        isHost: !this.isHost
+      };
+
+      // Switch to lobby state
+      this.gameState = 'lobby';
+      this.changeDetectorRef.detectChanges();
+
+      console.log('✅ Lobby setup complete:', {
+        currentPlayer: this.currentPlayer,
+        opponent: this.opponent,
+        isHost: this.isHost
+      });
+
+    } catch (error) {
+      console.error('Error setting up lobby:', error);
+      this.showMatchmakingError();
+    }
   }
 
   private async showMatchmakingError() {
@@ -176,27 +256,7 @@ export class QuickPlayPage implements OnInit, OnDestroy {
     await alert.present();
   }
 
-  private foundMatch() {
-    // Randomly assign host (50/50 chance)
-    this.isHost = Math.random() > 0.5;
 
-    if (this.currentPlayer) {
-      this.currentPlayer.isHost = this.isHost;
-    }
-
-    // Create opponent (in real implementation, this would come from the matched player)
-    this.opponent = {
-      id: 'opponent-1',
-      username: 'ChessMaster',
-      avatar: '/assets/images/profile-avatar-large.png',
-      ready: false,
-      isHost: !this.isHost
-    };
-
-    // Switch to lobby state
-    this.gameState = 'lobby';
-    this.changeDetectorRef.detectChanges();
-  }
 
   async toggleReady() {
     if (this.gameState !== 'lobby' || this.gameStarting) return;
@@ -251,9 +311,15 @@ export class QuickPlayPage implements OnInit, OnDestroy {
   }
 
   private navigateToGame() {
-    // In real implementation, you'd navigate to the actual game with the game ID
-    const gameId = `quick-play-${Date.now()}`;
-    this.router.navigate(['/game', gameId], {
+    if (!this.gameId) {
+      console.error('No game ID available for navigation');
+      return;
+    }
+
+    console.log('🚀 Navigating to game:', this.gameId);
+
+    // Navigate to the actual game with the real game ID
+    this.router.navigate(['/game', this.gameId], {
       queryParams: {
         minutes: this.gameMinutes,
         hints: this.hintsEnabled,
