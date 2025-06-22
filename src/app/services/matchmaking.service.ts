@@ -292,19 +292,27 @@ export class MatchmakingService {
 
     // Get online players for challenges
     async getOnlinePlayers(): Promise<OnlinePlayer[]> {
-            const { data: players, error } = await this.supabaseService.db
-                .from('users')
-            .select('id, username, avatar_url, elo, is_online, wins, losses, draws, last_seen_at')
-                .eq('is_online', true)
-            .order('elo', { ascending: false })
-            .limit(50);
+        try {
+            const result = await this.authService.safeUserOperation(
+                () => this.supabaseService.db
+                    .from('users')
+                    .select('id, username, avatar_url, elo, is_online, wins, losses, draws, last_seen_at')
+                    .eq('is_online', true)
+                    .order('elo', { ascending: false })
+                    .limit(50),
+                'get_online_players'
+            );
 
-            if (error) {
-                console.error('Error fetching online players:', error);
+            if (result.error) {
+                console.error('Error fetching online players:', result.error);
                 return [];
             }
 
-        return players || [];
+            return (result.data as any) || [];
+        } catch (error) {
+            console.error('Error fetching online players:', error);
+            return [];
+        }
     }
 
     // Update user's online status
@@ -312,13 +320,20 @@ export class MatchmakingService {
         const user = this.supabaseService.user;
         if (!user) return;
 
-        const { error } = await this.supabaseService.updateUserProfile(user.id, {
-                is_online: isOnline,
-            last_seen_at: new Date().toISOString(),
-            last_seen_method: isOnline ? 'active' : 'offline'
-        });
+        try {
+            const result = await this.authService.safeUserOperation(
+                () => this.supabaseService.updateUserProfile(user.id, {
+                    is_online: isOnline,
+                    last_seen_at: new Date().toISOString(),
+                    last_seen_method: isOnline ? 'active' : 'offline'
+                }),
+                'update_online_status'
+            );
 
-        if (error) {
+            if (result.error) {
+                console.error('Error updating online status:', result.error);
+            }
+        } catch (error) {
             console.error('Error updating online status:', error);
         }
     }

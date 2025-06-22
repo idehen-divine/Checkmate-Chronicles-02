@@ -19,6 +19,11 @@ export class AuthService {
 		this.supabaseService.user$.subscribe(user => {
 			this.currentUser.next(user);
 			this.isAuthenticated.next(!!user);
+
+			// Check and create user profile when user signs in
+			if (user) {
+				this.checkAuthState();
+			}
 		});
 	}
 
@@ -84,15 +89,16 @@ export class AuthService {
 	async checkAuthState() {
 		const user = this.supabaseService.user;
 		if (user) {
-			// Check if user profile exists in our database using safe operation
-			const { data: profile, error } = await this.safeUserOperation(
-				() => this.supabaseService.getUserProfile(user.id),
-				'check_auth_state'
-			);
+			// Check if user profile exists in our database - use direct call here
+			// because we want to create the profile if it doesn't exist, not log out
+			const { data: profile, error } = await this.supabaseService.getUserProfile(user.id);
 
-			// If profile doesn't exist and user wasn't logged out, create it
-			if (!profile && !error) {
+			if (error && error.code === 'PGRST116') {
+				// User profile doesn't exist, create it
+				console.log('User profile not found, creating new profile...');
 				await this.createUserProfile(user);
+			} else if (error) {
+				console.error('Error checking user profile:', error);
 			}
 		}
 	}

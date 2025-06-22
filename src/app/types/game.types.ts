@@ -54,11 +54,9 @@ export interface GameMove {
 export interface ChessRank {
 	id: string;
 	name: string;
-	display_name: string;
 	min_elo: number;
 	max_elo: number | null;
-	color_code: string;
-	rank_order: number;
+	description: string;
 }
 
 export interface RatingHistoryItem {

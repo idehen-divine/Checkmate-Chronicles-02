@@ -26,21 +26,24 @@ export class UserProfileService {
             this.authService.safeUserOperation(
                 () => this.supabaseService.db
                     .from('users')
-                    .select(`
-                    *,
-                    chess_ranks (
-                        display_name,
-                        color_code
-                    )
-                `)
+                    .select('*')
                     .eq('id', user.id)
                     .single(),
                 'get_user_profile_with_rank'
             )
         ).pipe(
             map(({ data, error }) => {
-                if (error || !data) {
-                    // Return default profile if no data found using utility
+                if (error) {
+                    // If there's an error after safe operation, it means user wasn't logged out
+                    // Return default profile as fallback
+                    return UserUtils.createDefaultUserProfile(
+                        user.email,
+                        user.user_metadata?.['full_name']
+                    );
+                }
+
+                if (!data) {
+                    // No data but no error - return default profile
                     return UserUtils.createDefaultUserProfile(
                         user.email,
                         user.user_metadata?.['full_name']
@@ -50,10 +53,18 @@ export class UserProfileService {
                 // Type assertion for the data
                 const userData = data as any;
 
+                // Get rank name based on ELO using game_ranking logic
+                const userElo = userData.elo || 0;
+                let rankName = 'Beginner';
+
+                if (userElo >= 2300) rankName = 'Grandmaster';
+                else if (userElo >= 1900) rankName = 'Master';
+                else if (userElo >= 1500) rankName = 'Advanced';
+                else if (userElo >= 1000) rankName = 'Intermediate';
+                else rankName = 'Beginner';
+
                 // Format rank display with ELO
-                const rankDisplay = userData.chess_ranks
-                    ? `${userData.chess_ranks.display_name} | ${userData.current_elo || 1000}`
-                    : `Novice | ${userData.current_elo || 1000}`;
+                const rankDisplay = `${rankName} | ${userElo}`;
 
                 return {
                     name: user.user_metadata?.['full_name'] || userData.username,
@@ -61,11 +72,10 @@ export class UserProfileService {
                     email: user.email,
                     rank: rankDisplay,
                     avatar: UserUtils.generateAvatarUrl(userData),
-                    currentElo: userData.current_elo,
-                    highestElo: userData.highest_elo
+                    currentElo: userData.elo,
+                    highestElo: userData.elo // For now, use current ELO as highest
                 };
-            }),
-            catchError(() => of(UserUtils.createDefaultUserProfile()))
+            })
         );
     }
 
