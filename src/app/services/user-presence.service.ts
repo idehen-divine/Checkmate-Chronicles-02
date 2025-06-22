@@ -237,4 +237,4 @@ export class UserPresenceService implements OnDestroy {
         this.destroy$.complete();
         this.stopPingSystem();
     }
-} 
+}
