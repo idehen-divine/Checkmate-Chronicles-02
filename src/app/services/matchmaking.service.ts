@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { SupabaseService } from './supabase.service';
+import { AuthService } from './auth.service';
 import { BehaviorSubject, Observable, Subscription } from 'rxjs';
 import { Database } from '../types';
 
@@ -35,7 +36,10 @@ export class MatchmakingService {
 
     private queueSubscription: any;
 
-    constructor(private supabaseService: SupabaseService) { }
+    constructor(
+        private supabaseService: SupabaseService,
+        private authService: AuthService
+    ) { }
 
     // Check if user is in queue
     async isUserInQueue(userId?: string): Promise<boolean> {
@@ -70,11 +74,20 @@ export class MatchmakingService {
 
         console.log(`👤 User joining ${gameType} queue: ${user.id}`);
 
-        // Ensure user profile exists
-        let { data: userProfile, error: profileError } = await this.supabaseService.getUserProfile(user.id);
+        // Ensure user profile exists - use safe operation that handles missing profiles
+        const { data: userProfile, error: profileError } = await this.authService.safeUserOperation(
+            () => this.supabaseService.getUserProfile(user.id),
+            'matchmaking_get_user_profile'
+        );
 
-        if (profileError && profileError.code === 'PGRST116') {
-            // User profile doesn't exist, create it
+        if (profileError) {
+            console.error('❌ Error getting user profile or user was logged out:', profileError);
+            throw profileError;
+        }
+
+        // If profile is still null after safe operation, create it
+        let finalUserProfile = userProfile;
+        if (!finalUserProfile) {
             console.log(`🆕 Creating new user profile for ${user.id}...`);
             const newProfile = {
                 id: user.id,
@@ -94,10 +107,7 @@ export class MatchmakingService {
                 throw new Error('Failed to create user profile');
             }
 
-            userProfile = createdProfile;
-        } else if (profileError) {
-            console.error('❌ Error getting user profile:', profileError);
-            throw profileError;
+            finalUserProfile = createdProfile;
         }
 
         // Update online status
@@ -129,7 +139,7 @@ export class MatchmakingService {
         await this.getQueueStatus();
 
         // Start looking for opponents
-        this.startMatchmaking(user.id, userProfile?.elo || 1200, gameType);
+        this.startMatchmaking(user.id, (finalUserProfile as any)?.elo || 1200, gameType);
     }
 
     // Leave matchmaking queue

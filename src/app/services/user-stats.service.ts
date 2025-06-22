@@ -2,13 +2,17 @@ import { Injectable } from '@angular/core';
 import { Observable, of, from, map, catchError } from 'rxjs';
 import { UserStats } from '../types';
 import { SupabaseService } from './supabase.service';
+import { AuthService } from './auth.service';
 
 @Injectable({
     providedIn: 'root'
 })
 export class UserStatsService {
 
-    constructor(private supabaseService: SupabaseService) { }
+    constructor(
+        private supabaseService: SupabaseService,
+        private authService: AuthService
+    ) { }
 
     // Get user stats from database
     getUserStats(): Observable<UserStats> {
@@ -24,11 +28,14 @@ export class UserStatsService {
         }
 
         return from(
-            this.supabaseService.db
-                .from('users')
-                .select('wins, losses, draws, games_played, current_elo, highest_elo')
-                .eq('id', user.id)
-                .single()
+            this.authService.safeUserOperation(
+                () => this.supabaseService.db
+                    .from('users')
+                    .select('wins, losses, draws, games_played, current_elo, highest_elo')
+                    .eq('id', user.id)
+                    .single(),
+                'get_user_stats'
+            )
         ).pipe(
             map(({ data, error }) => {
                 if (error || !data) {
@@ -43,18 +50,21 @@ export class UserStatsService {
                     };
                 }
 
+                // Type assertion for the data
+                const userData = data as any;
+
                 // Calculate win percentage
-                const winPercentage = data.games_played > 0
-                    ? Math.round((data.wins / data.games_played) * 100)
+                const winPercentage = userData.games_played > 0
+                    ? Math.round((userData.wins / userData.games_played) * 100)
                     : 0;
 
                 return {
-                    wins: `Wins: ${data.wins}`,
-                    losses: data.losses || 0,
-                    draws: data.draws || 0,
+                    wins: `Wins: ${userData.wins}`,
+                    losses: userData.losses || 0,
+                    draws: userData.draws || 0,
                     nfts: 0, // TODO: Get actual NFT count from NFTService
                     streak: winPercentage, // Using win percentage as streak for now
-                    games: data.games_played || 0,
+                    games: userData.games_played || 0,
                     winPercentage
                 };
             }),
@@ -78,17 +88,21 @@ export class UserStatsService {
         }
 
         return from(
-            this.supabaseService.db
-                .from('users')
-                .select('current_elo')
-                .eq('id', user.id)
-                .single()
+            this.authService.safeUserOperation(
+                () => this.supabaseService.db
+                    .from('users')
+                    .select('current_elo')
+                    .eq('id', user.id)
+                    .single(),
+                'get_current_elo'
+            )
         ).pipe(
             map(({ data, error }) => {
                 if (error || !data) {
                     return 1000;
                 }
-                return data.current_elo || 1000;
+                const userData = data as any;
+                return userData.current_elo || 1000;
             }),
             catchError(() => of(1000))
         );
@@ -102,17 +116,21 @@ export class UserStatsService {
         }
 
         return from(
-            this.supabaseService.db
-                .from('users')
-                .select('highest_elo')
-                .eq('id', user.id)
-                .single()
+            this.authService.safeUserOperation(
+                () => this.supabaseService.db
+                    .from('users')
+                    .select('highest_elo')
+                    .eq('id', user.id)
+                    .single(),
+                'get_highest_elo'
+            )
         ).pipe(
             map(({ data, error }) => {
                 if (error || !data) {
                     return 1000;
                 }
-                return data.highest_elo || 1000;
+                const userData = data as any;
+                return userData.highest_elo || 1000;
             }),
             catchError(() => of(1000))
         );
@@ -143,11 +161,14 @@ export class UserStatsService {
         }
 
         return from(
-            this.supabaseService.db
-                .from('users')
-                .select('wins, losses, draws, games_played, current_elo, highest_elo')
-                .eq('id', user.id)
-                .single()
+            this.authService.safeUserOperation(
+                () => this.supabaseService.db
+                    .from('users')
+                    .select('wins, losses, draws, games_played, current_elo, highest_elo')
+                    .eq('id', user.id)
+                    .single(),
+                'get_detailed_stats'
+            )
         ).pipe(
             map(({ data, error }) => {
                 if (error || !data) {
@@ -162,18 +183,19 @@ export class UserStatsService {
                     };
                 }
 
-                const winRate = data.games_played > 0
-                    ? (data.wins / data.games_played) * 100
+                const userData = data as any;
+                const winRate = userData.games_played > 0
+                    ? (userData.wins / userData.games_played) * 100
                     : 0;
 
                 return {
-                    totalGames: data.games_played || 0,
-                    wins: data.wins || 0,
-                    losses: data.losses || 0,
-                    draws: data.draws || 0,
+                    totalGames: userData.games_played || 0,
+                    wins: userData.wins || 0,
+                    losses: userData.losses || 0,
+                    draws: userData.draws || 0,
                     winRate: Math.round(winRate * 100) / 100, // Round to 2 decimal places
-                    currentElo: data.current_elo || 1000,
-                    highestElo: data.highest_elo || 1000
+                    currentElo: userData.current_elo || 1000,
+                    highestElo: userData.highest_elo || 1000
                 };
             }),
             catchError(() => of({

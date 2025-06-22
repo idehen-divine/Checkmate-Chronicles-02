@@ -136,9 +136,13 @@ export class UserPresenceService implements OnDestroy {
 
             if (error) {
                 console.warn('Failed to send ping:', error);
+                // Check if this is a user profile not found error
+                await this.authService.handleUserProfileNotFound(error, 'ping_user_activity');
             }
         } catch (error) {
             console.warn('Ping failed:', error);
+            // Check if this is a user profile not found error
+            await this.authService.handleUserProfileNotFound(error, 'ping_user_activity');
         }
     }
 
@@ -179,14 +183,22 @@ export class UserPresenceService implements OnDestroy {
         this.updateActivity(activityType);
 
         try {
-            await this.supabaseService.pingUserActivity(
+            const { data, error } = await this.supabaseService.pingUserActivity(
                 user.id,
                 activityType,
                 this.currentPage,
                 additionalData
             );
+
+            if (error) {
+                console.warn('Failed to track activity:', error);
+                // Check if this is a user profile not found error
+                await this.authService.handleUserProfileNotFound(error, 'track_activity');
+            }
         } catch (error) {
             console.warn('Failed to track activity:', error);
+            // Check if this is a user profile not found error
+            await this.authService.handleUserProfileNotFound(error, 'track_activity');
         }
     }
 
