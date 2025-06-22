@@ -64,7 +64,10 @@ CREATE POLICY "Users can create games" ON games FOR
 INSERT
     TO authenticated
 WITH
-    CHECK (auth.uid () = player1_id);
+    CHECK (
+        auth.uid () = player1_id
+        OR auth.uid () = player2_id
+    );
 
 CREATE POLICY "Players can update their games" ON games FOR
 UPDATE TO authenticated USING (

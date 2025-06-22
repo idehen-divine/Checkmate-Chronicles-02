@@ -40,11 +40,15 @@ games_played INTEGER DEFAULT 0 NOT NULL,
 
 -- User Preferences
 sounds_enabled BOOLEAN DEFAULT true,
-  hints_enabled BOOLEAN DEFAULT true,
-  legal_moves_enabled BOOLEAN DEFAULT true,
-  game_invites_enabled BOOLEAN DEFAULT true,
-  nft_mints_enabled BOOLEAN DEFAULT true,
-  announcements_enabled BOOLEAN DEFAULT true
+hints_enabled BOOLEAN DEFAULT true,
+legal_moves_enabled BOOLEAN DEFAULT true,
+game_invites_enabled BOOLEAN DEFAULT true,
+nft_mints_enabled BOOLEAN DEFAULT true,
+announcements_enabled BOOLEAN DEFAULT true,
+
+-- Online Status
+is_online BOOLEAN DEFAULT false,
+  last_seen TIMESTAMPTZ DEFAULT now()
 );
 
 -- Create indexes for better performance
@@ -53,6 +57,10 @@ CREATE INDEX idx_users_current_rank ON users (current_rank_id);
 CREATE INDEX idx_users_current_elo ON users (current_elo);
 
 CREATE INDEX idx_users_username ON users (username);
+
+CREATE INDEX idx_users_is_online ON users (is_online);
+
+CREATE INDEX idx_users_last_seen ON users (last_seen);
 
 -- Enable Row Level Security
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
