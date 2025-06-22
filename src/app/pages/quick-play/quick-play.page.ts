@@ -19,6 +19,8 @@ import {
 import { HeaderToolbarComponent } from 'src/app/components/navigation/header-toolbar/header-toolbar.component';
 import { LobbyToolbarComponent } from 'src/app/components/navigation/game-toolbar/game-toolbar.component';
 import { SupabaseService } from '../../services/supabase.service';
+import { MatchmakingService } from '../../services/matchmaking.service';
+import { Subscription } from 'rxjs';
 
 export interface Player {
   id: string;
@@ -55,9 +57,14 @@ export class QuickPlayPage implements OnInit, OnDestroy {
   matchmakingDots = '';
   chatVisible = false;
 
+  // Subscriptions
+  private matchFoundSubscription?: Subscription;
+  private queueSubscription?: Subscription;
+
   constructor(
     private router: Router,
     private supabaseService: SupabaseService,
+    private matchmakingService: MatchmakingService,
     private alertController: AlertController,
     private popoverController: PopoverController,
     private modalController: ModalController,
@@ -79,11 +86,24 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.initializePlayer();
-    this.startMatchmaking();
+    this.startRealMatchmaking();
   }
 
   ngOnDestroy() {
-    // Cleanup if needed
+    this.cleanup();
+  }
+
+  private cleanup() {
+    // Leave matchmaking queue
+    this.matchmakingService.leaveMatchmakingQueue();
+
+    // Unsubscribe from observables
+    if (this.matchFoundSubscription) {
+      this.matchFoundSubscription.unsubscribe();
+    }
+    if (this.queueSubscription) {
+      this.queueSubscription.unsubscribe();
+    }
   }
 
   private initializePlayer() {
@@ -98,18 +118,62 @@ export class QuickPlayPage implements OnInit, OnDestroy {
     }
   }
 
-  private startMatchmaking() {
+  private startRealMatchmaking() {
     // Animate the loading dots
     const dotsInterval = setInterval(() => {
       this.matchmakingDots = this.matchmakingDots.length >= 3 ? '' : this.matchmakingDots + '.';
       this.changeDetectorRef.detectChanges();
     }, 500);
 
-    // Simulate finding a match after 3-5 seconds
-    setTimeout(() => {
+    // Subscribe to match found events
+    this.matchFoundSubscription = this.matchmakingService.subscribeToMatchFound((gameId: string) => {
       clearInterval(dotsInterval);
-      this.foundMatch();
-    }, 4000);
+      this.onMatchFound(gameId);
+    });
+
+    // Join the matchmaking queue
+    const timeControl = {
+      initial_time: this.gameMinutes * 60, // Convert to seconds
+      increment: 5 // 5 second increment
+    };
+
+    this.matchmakingService.joinMatchmakingQueue(timeControl).catch(error => {
+      console.error('Error joining matchmaking queue:', error);
+      clearInterval(dotsInterval);
+      this.showMatchmakingError();
+    });
+
+    // Subscribe to queue status
+    this.queueSubscription = this.matchmakingService.inQueue$.subscribe(inQueue => {
+      if (!inQueue && this.gameState === 'finding-match') {
+        // If we're not in queue anymore but still finding match, there might be an error
+        clearInterval(dotsInterval);
+      }
+    });
+  }
+
+  private async onMatchFound(gameId: string) {
+    // For now, simulate finding a match and creating a lobby
+    // In a real implementation, you'd get the opponent's details from the game
+    this.foundMatch();
+  }
+
+  private async showMatchmakingError() {
+    const alert = await this.alertController.create({
+      header: 'Matchmaking Error',
+      message: 'Unable to join matchmaking queue. Please try again.',
+      buttons: [
+        {
+          text: 'Retry',
+          handler: () => this.startRealMatchmaking()
+        },
+        {
+          text: 'Cancel',
+          handler: () => this.router.navigate(['/dashboard'])
+        }
+      ]
+    });
+    await alert.present();
   }
 
   private foundMatch() {
@@ -120,7 +184,7 @@ export class QuickPlayPage implements OnInit, OnDestroy {
       this.currentPlayer.isHost = this.isHost;
     }
 
-    // Create opponent
+    // Create opponent (in real implementation, this would come from the matched player)
     this.opponent = {
       id: 'opponent-1',
       username: 'ChessMaster',
@@ -142,7 +206,8 @@ export class QuickPlayPage implements OnInit, OnDestroy {
       this.currentPlayer.ready = this.isReady;
     }
 
-    // Simulate opponent also getting ready after a delay
+    // In real implementation, you'd notify the opponent via real-time updates
+    // For now, simulate opponent also getting ready after a delay
     if (this.isReady && this.opponent && !this.opponent.ready) {
       setTimeout(() => {
         if (this.opponent) {
@@ -186,6 +251,7 @@ export class QuickPlayPage implements OnInit, OnDestroy {
   }
 
   private navigateToGame() {
+    // In real implementation, you'd navigate to the actual game with the game ID
     const gameId = `quick-play-${Date.now()}`;
     this.router.navigate(['/game', gameId], {
       queryParams: {
@@ -207,6 +273,9 @@ export class QuickPlayPage implements OnInit, OnDestroy {
     if (!this.isHost) return;
     this.hintsEnabled = !this.hintsEnabled;
     this.changeDetectorRef.detectChanges();
+
+    // In real implementation, notify opponent of setting change
+    console.log('Hints toggled:', this.hintsEnabled);
   }
 
   async openTimeModal() {
@@ -240,11 +309,17 @@ export class QuickPlayPage implements OnInit, OnDestroy {
   private updateGameTime(minutes: number) {
     this.gameMinutes = minutes;
     this.changeDetectorRef.detectChanges();
+
+    // In real implementation, notify opponent of setting change
+    console.log('Game time updated:', minutes);
   }
 
   private updateGameName(name: string) {
     this.gameName = name;
     this.changeDetectorRef.detectChanges();
+
+    // In real implementation, notify opponent of setting change
+    console.log('Game name updated:', name);
   }
 
   // Legacy methods (keeping for compatibility)
@@ -324,6 +399,32 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 
   canClickReady(): boolean {
     return this.gameState === 'lobby' && !this.gameStarting;
+  }
+
+  // Add method to handle back navigation
+  async onBackPressed() {
+    if (this.gameState === 'finding-match') {
+      const alert = await this.alertController.create({
+        header: 'Leave Matchmaking?',
+        message: 'Are you sure you want to stop looking for a match?',
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel'
+          },
+          {
+            text: 'Leave',
+            handler: () => {
+              this.cleanup();
+              this.router.navigate(['/dashboard']);
+            }
+          }
+        ]
+      });
+      await alert.present();
+    } else {
+      this.router.navigate(['/dashboard']);
+    }
   }
 }
 
