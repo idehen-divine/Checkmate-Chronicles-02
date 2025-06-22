@@ -162,28 +162,46 @@ export class QuickPlayPage implements OnInit, OnDestroy {
     this.gameId = gameId;
 
     try {
-      // Get game details to find opponent
-      const { data: game, error } = await this.supabaseService.db
+      // Get game details first
+      const { data: game, error: gameError } = await this.supabaseService.db
         .from('games')
-        .select(`
-          *,
-          player1:users!player1_id(id, username),
-          player2:users!player2_id(id, username)
-        `)
+        .select('*')
         .eq('id', gameId)
         .single();
 
-      if (error || !game) {
-        console.error('Error loading game details:', error);
+      if (gameError || !game) {
+        console.error('Error loading game details:', gameError);
         this.showMatchmakingError();
         return;
       }
 
-      console.log('🎯 Game data loaded:', game);
+      // Get player details separately
+      const { data: players, error: playersError } = await this.supabaseService.db
+        .from('users')
+        .select('id, username')
+        .in('id', [game.player1_id, game.player2_id]);
+
+      if (playersError || !players || players.length !== 2) {
+        console.error('Error loading player details:', playersError);
+        this.showMatchmakingError();
+        return;
+      }
+
+      // Map players to game
+      const player1 = players.find(p => p.id === game.player1_id);
+      const player2 = players.find(p => p.id === game.player2_id);
+
+      const gameWithPlayers = {
+        ...game,
+        player1,
+        player2
+      };
+
+      console.log('🎯 Game data loaded:', gameWithPlayers);
 
       // Validate game data
-      if (!game.player1 || !game.player2) {
-        console.error('❌ Invalid game data - missing players:', { player1: game.player1, player2: game.player2 });
+      if (!gameWithPlayers.player1 || !gameWithPlayers.player2) {
+        console.error('❌ Invalid game data - missing players:', { player1: gameWithPlayers.player1, player2: gameWithPlayers.player2 });
         this.showMatchmakingError();
         return;
       }
@@ -192,18 +210,18 @@ export class QuickPlayPage implements OnInit, OnDestroy {
       const currentUserId = this.supabaseService.user?.id;
       let opponentData;
 
-      if (game.player1.id === currentUserId) {
-        opponentData = game.player2;
+      if (gameWithPlayers.player1.id === currentUserId) {
+        opponentData = gameWithPlayers.player2;
         this.isHost = true;
       } else {
-        opponentData = game.player1;
+        opponentData = gameWithPlayers.player1;
         this.isHost = false;
       }
 
       console.log('👥 Player assignment:', {
         currentUserId,
-        player1: game.player1,
-        player2: game.player2,
+        player1: gameWithPlayers.player1,
+        player2: gameWithPlayers.player2,
         opponentData,
         isHost: this.isHost
       });
