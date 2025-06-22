@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS games (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
     player1_id uuid REFERENCES users (id) ON DELETE CASCADE NOT NULL,
     player2_id uuid REFERENCES users (id) ON DELETE CASCADE NOT NULL,
+    game_type text NOT NULL, -- Can be: quick-match, tournament, custom, challenge, etc.
     status text DEFAULT 'waiting' CHECK (
         status IN (
             'waiting',
@@ -37,6 +38,8 @@ CREATE TABLE IF NOT EXISTS games (
 CREATE INDEX IF NOT EXISTS idx_games_player1_id ON games (player1_id);
 
 CREATE INDEX IF NOT EXISTS idx_games_player2_id ON games (player2_id);
+
+CREATE INDEX IF NOT EXISTS idx_games_game_type ON games (game_type);
 
 CREATE INDEX IF NOT EXISTS idx_games_status ON games (status);
 
@@ -289,10 +292,7 @@ RETURNS TABLE (
     games_last_month bigint,
     active_games bigint,
     finished_games bigint,
-    bullet_games bigint,
-    blitz_games bigint,
-    rapid_games bigint,
-    classical_games bigint,
+    game_types_breakdown jsonb,
     oldest_game timestamptz,
     newest_game timestamptz
 ) AS $$
@@ -304,10 +304,15 @@ BEGIN
         COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 month') as games_last_month,
         COUNT(*) FILTER (WHERE status = 'active') as active_games,
         COUNT(*) FILTER (WHERE status = 'finished') as finished_games,
-        COUNT(*) FILTER (WHERE game_type = 'bullet') as bullet_games,
-        COUNT(*) FILTER (WHERE game_type = 'blitz') as blitz_games,
-        COUNT(*) FILTER (WHERE game_type = 'rapid') as rapid_games,
-        COUNT(*) FILTER (WHERE game_type = 'classical') as classical_games,
+        (
+            SELECT jsonb_object_agg(game_type, count)
+            FROM (
+                SELECT game_type, COUNT(*) as count
+                FROM games
+                GROUP BY game_type
+                ORDER BY count DESC
+            ) type_counts
+        ) as game_types_breakdown,
         MIN(created_at) as oldest_game,
         MAX(created_at) as newest_game
     FROM games;

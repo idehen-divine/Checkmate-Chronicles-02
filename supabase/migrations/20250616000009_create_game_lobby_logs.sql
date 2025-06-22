@@ -178,9 +178,9 @@ RETURNS TABLE (
     logs_last_month bigint,
     active_game_logs bigint,
     finished_game_logs bigint,
-    join_logs bigint,
-    leave_logs bigint,
-    spectator_logs bigint,
+    entered_logs bigint,
+    left_logs bigint,
+    ready_logs bigint,
     oldest_log timestamptz,
     newest_log timestamptz
 ) AS $$
@@ -192,9 +192,9 @@ BEGIN
         COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 month') as logs_last_month,
         COUNT(*) FILTER (WHERE game_id IN (SELECT id FROM games WHERE status = 'active')) as active_game_logs,
         COUNT(*) FILTER (WHERE game_id IN (SELECT id FROM games WHERE status = 'finished')) as finished_game_logs,
-        COUNT(*) FILTER (WHERE action = 'join') as join_logs,
-        COUNT(*) FILTER (WHERE action = 'leave') as leave_logs,
-        COUNT(*) FILTER (WHERE action = 'spectate') as spectator_logs,
+        COUNT(*) FILTER (WHERE event = 'entered_lobby') as entered_logs,
+        COUNT(*) FILTER (WHERE event = 'left_lobby') as left_logs,
+        COUNT(*) FILTER (WHERE event = 'ready') as ready_logs,
         MIN(created_at) as oldest_log,
         MAX(created_at) as newest_log
     FROM game_lobby_logs;

@@ -7,25 +7,18 @@ Handles finding and pairing players.
 CREATE TABLE IF NOT EXISTS matchmaking_queue (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
     player_id uuid REFERENCES users (id) ON DELETE CASCADE NOT NULL,
-    game_type text NOT NULL CHECK (
-        game_type IN (
-            'bullet',
-            'blitz',
-            'rapid',
-            'classical'
-        )
-    ),
+    game_type text NOT NULL, -- Can be: quick-match, tournament, custom, etc.
     status text DEFAULT 'waiting' CHECK (
         status IN (
             'waiting',
             'matching',
             'matched',
-            'lobby'
+            'cancelled'
         )
     ) NOT NULL,
     created_at timestamptz DEFAULT now() NOT NULL,
     updated_at timestamptz DEFAULT now() NOT NULL,
-    UNIQUE (player_id) -- One queue entry per player
+    CONSTRAINT unique_player_queue UNIQUE (player_id) -- One queue entry per player
 );
 
 -- Create indexes
@@ -125,10 +118,7 @@ RETURNS TABLE (
     waiting_entries bigint,
     matched_entries bigint,
     cancelled_entries bigint,
-    bullet_queue bigint,
-    blitz_queue bigint,
-    rapid_queue bigint,
-    classical_queue bigint,
+    game_types_breakdown jsonb,
     avg_wait_time interval,
     oldest_entry timestamptz,
     newest_entry timestamptz
@@ -142,10 +132,15 @@ BEGIN
         COUNT(*) FILTER (WHERE status = 'waiting') as waiting_entries,
         COUNT(*) FILTER (WHERE status = 'matched') as matched_entries,
         COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled_entries,
-        COUNT(*) FILTER (WHERE game_type = 'bullet') as bullet_queue,
-        COUNT(*) FILTER (WHERE game_type = 'blitz') as blitz_queue,
-        COUNT(*) FILTER (WHERE game_type = 'rapid') as rapid_queue,
-        COUNT(*) FILTER (WHERE game_type = 'classical') as classical_queue,
+        (
+            SELECT jsonb_object_agg(game_type, count)
+            FROM (
+                SELECT game_type, COUNT(*) as count
+                FROM matchmaking_queue
+                GROUP BY game_type
+                ORDER BY count DESC
+            ) type_counts
+        ) as game_types_breakdown,
         AVG(CASE WHEN status != 'waiting' THEN updated_at - created_at END) as avg_wait_time,
         MIN(created_at) as oldest_entry,
         MAX(created_at) as newest_entry
