@@ -60,12 +60,6 @@ CREATE TRIGGER trigger_track_matchmaking_activity
     FOR EACH ROW
     EXECUTE FUNCTION auto_track_user_activity();
 
--- Create trigger to automatically cleanup old data on interactions
-CREATE TRIGGER trigger_auto_cleanup_matchmaking_queue
-    AFTER INSERT ON matchmaking_queue
-    FOR EACH STATEMENT
-    EXECUTE FUNCTION cleanup_old_matchmaking_queue();
-
 -- Function to clean up old queue entries (older than 30 minutes)
 CREATE OR REPLACE FUNCTION cleanup_old_queue_entries()
 RETURNS void AS $$
@@ -75,15 +69,6 @@ BEGIN
     AND status = 'waiting';
 END;
 $$ LANGUAGE plpgsql;
-
--- Create a function to be called periodically to clean up old entries
--- This can be called by a cron job or application logic
-
--- Create trigger to track user activity when matchmaking queue is modified
-CREATE TRIGGER trigger_track_matchmaking_activity
-    AFTER INSERT OR UPDATE OR DELETE ON matchmaking_queue
-    FOR EACH ROW
-    EXECUTE FUNCTION auto_track_user_activity();
 
 -- OPTIMIZATION: Add retention policy and cleanup functions
 -- 1. Cleanup old matchmaking queue entries (1-month retention)
@@ -101,13 +86,28 @@ BEGIN
     
     -- Clean up entries for users who are no longer online
     DELETE FROM matchmaking_queue 
-    WHERE user_id IN (
+    WHERE player_id IN (
         SELECT id FROM users 
         WHERE last_seen_at < NOW() - INTERVAL '5 minutes'
         AND is_online = false
     );
 END;
 $$ LANGUAGE plpgsql;
+
+-- Trigger wrapper function for cleanup
+CREATE OR REPLACE FUNCTION trigger_cleanup_old_matchmaking_queue()
+RETURNS TRIGGER AS $$
+BEGIN
+    PERFORM cleanup_old_matchmaking_queue();
+    RETURN NULL; -- For AFTER triggers, return value is ignored
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger to automatically cleanup old data on interactions
+CREATE TRIGGER trigger_auto_cleanup_matchmaking_queue
+    AFTER INSERT ON matchmaking_queue
+    FOR EACH STATEMENT
+    EXECUTE FUNCTION trigger_cleanup_old_matchmaking_queue();
 
 -- 2. Get matchmaking queue statistics
 CREATE OR REPLACE FUNCTION get_matchmaking_queue_stats()

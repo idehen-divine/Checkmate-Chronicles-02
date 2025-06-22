@@ -157,12 +157,6 @@ CREATE TRIGGER trigger_log_move_event
     FOR EACH ROW
     EXECUTE FUNCTION log_move_event();
 
--- Create trigger to automatically cleanup old data on interactions
-CREATE TRIGGER trigger_auto_cleanup_events
-    AFTER INSERT ON game_events
-    FOR EACH STATEMENT
-    EXECUTE FUNCTION cleanup_old_game_events();
-
 -- OPTIMIZATION: Add retention policy and cleanup functions
 -- 1. Add retention policy function (1-month retention)
 CREATE OR REPLACE FUNCTION cleanup_old_game_events()
@@ -194,6 +188,21 @@ BEGIN
     );
 END;
 $$ LANGUAGE plpgsql;
+
+-- Trigger wrapper function for cleanup
+CREATE OR REPLACE FUNCTION trigger_cleanup_old_game_events()
+RETURNS TRIGGER AS $$
+BEGIN
+    PERFORM cleanup_old_game_events();
+    RETURN NULL; -- For AFTER triggers, return value is ignored
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger to automatically cleanup old data on interactions
+CREATE TRIGGER trigger_auto_cleanup_events
+    AFTER INSERT ON game_events
+    FOR EACH STATEMENT
+    EXECUTE FUNCTION trigger_cleanup_old_game_events();
 
 -- 2. Manual cleanup function with reporting
 CREATE OR REPLACE FUNCTION manual_cleanup_game_events()

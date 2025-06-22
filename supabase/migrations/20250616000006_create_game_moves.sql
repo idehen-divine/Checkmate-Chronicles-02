@@ -118,17 +118,24 @@ CREATE TRIGGER trigger_game_moves_activity_tracking
     FOR EACH ROW
     EXECUTE FUNCTION auto_track_user_activity();
 
+-- Function to update game timestamp when move is made
+CREATE OR REPLACE FUNCTION update_game_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Update the game's updated_at timestamp when a move is made
+    UPDATE games 
+    SET updated_at = NEW.created_at 
+    WHERE id = NEW.game_id;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Create trigger to update game updated_at when move is made
 CREATE TRIGGER trigger_update_game_timestamp
     AFTER INSERT ON game_moves
     FOR EACH ROW
     EXECUTE FUNCTION update_game_timestamp();
-
--- Create trigger to automatically cleanup old data on interactions
-CREATE TRIGGER trigger_auto_cleanup_moves
-    AFTER INSERT ON game_moves
-    FOR EACH STATEMENT
-    EXECUTE FUNCTION cleanup_old_game_moves();
 
 -- OPTIMIZATION: Add retention policy and cleanup functions
 -- 1. Cleanup old game moves (1-month retention)
@@ -152,6 +159,21 @@ BEGIN
     );
 END;
 $$ LANGUAGE plpgsql;
+
+-- Trigger wrapper function for cleanup
+CREATE OR REPLACE FUNCTION trigger_cleanup_old_game_moves()
+RETURNS TRIGGER AS $$
+BEGIN
+    PERFORM cleanup_old_game_moves();
+    RETURN NULL; -- For AFTER triggers, return value is ignored
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger to automatically cleanup old data on interactions
+CREATE TRIGGER trigger_auto_cleanup_moves
+    AFTER INSERT ON game_moves
+    FOR EACH STATEMENT
+    EXECUTE FUNCTION trigger_cleanup_old_game_moves();
 
 -- 2. Get game moves statistics
 CREATE OR REPLACE FUNCTION get_game_moves_stats()

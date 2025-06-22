@@ -163,12 +163,6 @@ CREATE TRIGGER trigger_track_message_activity
     FOR EACH ROW
     EXECUTE FUNCTION auto_track_user_activity();
 
--- Create trigger to automatically cleanup old data on interactions
-CREATE TRIGGER trigger_auto_cleanup_messages
-    AFTER INSERT ON game_messages
-    FOR EACH STATEMENT
-    EXECUTE FUNCTION cleanup_old_game_messages();
-
 -- OPTIMIZATION: Add retention policy and cleanup functions
 -- 1. Cleanup old game messages (1-month retention)
 CREATE OR REPLACE FUNCTION cleanup_old_game_messages()
@@ -191,6 +185,21 @@ BEGIN
     );
 END;
 $$ LANGUAGE plpgsql;
+
+-- Trigger wrapper function for cleanup
+CREATE OR REPLACE FUNCTION trigger_cleanup_old_game_messages()
+RETURNS TRIGGER AS $$
+BEGIN
+    PERFORM cleanup_old_game_messages();
+    RETURN NULL; -- For AFTER triggers, return value is ignored
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger to automatically cleanup old data on interactions
+CREATE TRIGGER trigger_auto_cleanup_messages
+    AFTER INSERT ON game_messages
+    FOR EACH STATEMENT
+    EXECUTE FUNCTION trigger_cleanup_old_game_messages();
 
 -- 2. Get game messages statistics
 CREATE OR REPLACE FUNCTION get_game_messages_stats()

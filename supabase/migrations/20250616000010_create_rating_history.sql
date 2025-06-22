@@ -221,12 +221,6 @@ CREATE TRIGGER trigger_track_rating_activity
     FOR EACH ROW
     EXECUTE FUNCTION auto_track_user_activity();
 
--- Create trigger to automatically cleanup old data on interactions
-CREATE TRIGGER trigger_auto_cleanup_rating_history
-    AFTER INSERT ON rating_history
-    FOR EACH STATEMENT
-    EXECUTE FUNCTION cleanup_old_rating_history();
-
 -- OPTIMIZATION: Add retention policy and cleanup functions
 -- 1. Cleanup old rating history (1-month retention)
 CREATE OR REPLACE FUNCTION cleanup_old_rating_history()
@@ -253,6 +247,21 @@ BEGIN
     );
 END;
 $$ LANGUAGE plpgsql;
+
+-- Trigger wrapper function for cleanup
+CREATE OR REPLACE FUNCTION trigger_cleanup_old_rating_history()
+RETURNS TRIGGER AS $$
+BEGIN
+    PERFORM cleanup_old_rating_history();
+    RETURN NULL; -- For AFTER triggers, return value is ignored
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger to automatically cleanup old data on interactions
+CREATE TRIGGER trigger_auto_cleanup_rating_history
+    AFTER INSERT ON rating_history
+    FOR EACH STATEMENT
+    EXECUTE FUNCTION trigger_cleanup_old_rating_history();
 
 -- 2. Get rating history statistics
 CREATE OR REPLACE FUNCTION get_rating_history_stats()
