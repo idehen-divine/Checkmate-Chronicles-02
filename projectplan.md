@@ -68,7 +68,8 @@ Checkmate Chronicles is a blockchain-powered chess application that combines tra
 
 ### 🔄 Checkpoint 5: AI Chess Integration
 **Goal**: Provide AI opponents of varying difficulty levels
-**Status** Skipping this for now then coming back after core features has been added 
+**Status** Skipping this for now then coming back a
+fter core features has been added 
 
 #### Tasks:
 - [ ] Research chess AI options (Stockfish.js or similar)
