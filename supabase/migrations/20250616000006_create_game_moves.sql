@@ -124,6 +124,12 @@ CREATE TRIGGER trigger_update_game_timestamp
     FOR EACH ROW
     EXECUTE FUNCTION update_game_timestamp();
 
+-- Create trigger to automatically cleanup old data on interactions
+CREATE TRIGGER trigger_auto_cleanup_moves
+    AFTER INSERT ON game_moves
+    FOR EACH STATEMENT
+    EXECUTE FUNCTION cleanup_old_game_moves();
+
 -- OPTIMIZATION: Add retention policy and cleanup functions
 -- 1. Cleanup old game moves (1-month retention)
 CREATE OR REPLACE FUNCTION cleanup_old_game_moves()
@@ -147,30 +153,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 2. Create archive table for old moves
-CREATE TABLE IF NOT EXISTS game_moves_archive (LIKE game_moves INCLUDING ALL);
-
--- 3. Function to archive old moves instead of deleting
-CREATE OR REPLACE FUNCTION archive_old_game_moves()
-RETURNS void AS $$
-BEGIN
-    -- Archive moves older than 1 month for finished games
-    WITH archived_moves AS (
-        DELETE FROM game_moves 
-        WHERE created_at < NOW() - INTERVAL '1 month'
-        AND game_id IN (
-            SELECT id FROM games 
-            WHERE status = 'finished' 
-            AND updated_at < NOW() - INTERVAL '1 week'
-        )
-        RETURNING *
-    )
-    INSERT INTO game_moves_archive 
-    SELECT * FROM archived_moves;
-END;
-$$ LANGUAGE plpgsql;
-
--- 4. Get game moves statistics
+-- 2. Get game moves statistics
 CREATE OR REPLACE FUNCTION get_game_moves_stats()
 RETURNS TABLE (
     total_moves bigint,

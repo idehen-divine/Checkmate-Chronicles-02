@@ -141,6 +141,12 @@ CREATE TRIGGER trigger_track_lobby_activity
     FOR EACH ROW
     EXECUTE FUNCTION auto_track_user_activity();
 
+-- Create trigger to automatically cleanup old data on interactions
+CREATE TRIGGER trigger_auto_cleanup_lobby_logs
+    AFTER INSERT ON game_lobby_logs
+    FOR EACH STATEMENT
+    EXECUTE FUNCTION cleanup_old_game_lobby_logs();
+
 -- OPTIMIZATION: Add retention policy and cleanup functions
 -- 1. Cleanup old game lobby logs (1-month retention)
 CREATE OR REPLACE FUNCTION cleanup_old_game_lobby_logs()
@@ -164,32 +170,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 2. Create archive table for old lobby logs
-CREATE TABLE IF NOT EXISTS game_lobby_logs_archive (
-    LIKE game_lobby_logs INCLUDING ALL
-);
-
--- 3. Function to archive old lobby logs instead of deleting
-CREATE OR REPLACE FUNCTION archive_old_game_lobby_logs()
-RETURNS void AS $$
-BEGIN
-    -- Archive lobby logs older than 1 month for finished games
-    WITH archived_logs AS (
-        DELETE FROM game_lobby_logs 
-        WHERE created_at < NOW() - INTERVAL '1 month'
-        AND game_id IN (
-            SELECT id FROM games 
-            WHERE status = 'finished' 
-            AND updated_at < NOW() - INTERVAL '1 week'
-        )
-        RETURNING *
-    )
-    INSERT INTO game_lobby_logs_archive 
-    SELECT * FROM archived_logs;
-END;
-$$ LANGUAGE plpgsql;
-
--- 4. Get game lobby logs statistics
+-- 2. Get game lobby logs statistics
 CREATE OR REPLACE FUNCTION get_game_lobby_logs_stats()
 RETURNS TABLE (
     total_logs bigint,

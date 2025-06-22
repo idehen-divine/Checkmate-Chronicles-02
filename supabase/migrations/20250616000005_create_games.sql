@@ -257,6 +257,12 @@ CREATE TRIGGER trigger_track_game_activity
     FOR EACH ROW
     EXECUTE FUNCTION auto_track_user_activity();
 
+-- Create trigger to automatically cleanup old data on interactions
+CREATE TRIGGER trigger_auto_cleanup_games
+    AFTER INSERT ON games
+    FOR EACH STATEMENT
+    EXECUTE FUNCTION cleanup_old_games();
+
 -- OPTIMIZATION: Add retention policy and cleanup functions
 -- 1. Cleanup old games (1-month retention)
 CREATE OR REPLACE FUNCTION cleanup_old_games()
@@ -275,26 +281,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 2. Create archive table for old games
-CREATE TABLE IF NOT EXISTS games_archive (LIKE games INCLUDING ALL);
-
--- 3. Function to archive old games instead of deleting
-CREATE OR REPLACE FUNCTION archive_old_games()
-RETURNS void AS $$
-BEGIN
-    -- Archive finished games older than 1 month
-    WITH archived_games AS (
-        DELETE FROM games 
-        WHERE status = 'finished' 
-        AND updated_at < NOW() - INTERVAL '1 month'
-        RETURNING *
-    )
-    INSERT INTO games_archive 
-    SELECT * FROM archived_games;
-END;
-$$ LANGUAGE plpgsql;
-
--- 4. Get games statistics
+-- 2. Get games statistics
 CREATE OR REPLACE FUNCTION get_games_stats()
 RETURNS TABLE (
     total_games bigint,

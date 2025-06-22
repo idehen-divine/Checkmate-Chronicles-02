@@ -163,6 +163,12 @@ CREATE TRIGGER trigger_track_message_activity
     FOR EACH ROW
     EXECUTE FUNCTION auto_track_user_activity();
 
+-- Create trigger to automatically cleanup old data on interactions
+CREATE TRIGGER trigger_auto_cleanup_messages
+    AFTER INSERT ON game_messages
+    FOR EACH STATEMENT
+    EXECUTE FUNCTION cleanup_old_game_messages();
+
 -- OPTIMIZATION: Add retention policy and cleanup functions
 -- 1. Cleanup old game messages (1-month retention)
 CREATE OR REPLACE FUNCTION cleanup_old_game_messages()
@@ -186,32 +192,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 2. Create archive table for old messages
-CREATE TABLE IF NOT EXISTS game_messages_archive (
-    LIKE game_messages INCLUDING ALL
-);
-
--- 3. Function to archive old messages instead of deleting
-CREATE OR REPLACE FUNCTION archive_old_game_messages()
-RETURNS void AS $$
-BEGIN
-    -- Archive messages older than 1 month for finished games
-    WITH archived_messages AS (
-        DELETE FROM game_messages 
-        WHERE created_at < NOW() - INTERVAL '1 month'
-        AND game_id IN (
-            SELECT id FROM games 
-            WHERE status = 'finished' 
-            AND updated_at < NOW() - INTERVAL '1 week'
-        )
-        RETURNING *
-    )
-    INSERT INTO game_messages_archive 
-    SELECT * FROM archived_messages;
-END;
-$$ LANGUAGE plpgsql;
-
--- 4. Get game messages statistics
+-- 2. Get game messages statistics
 CREATE OR REPLACE FUNCTION get_game_messages_stats()
 RETURNS TABLE (
     total_messages bigint,

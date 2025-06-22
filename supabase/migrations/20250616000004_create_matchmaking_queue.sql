@@ -61,6 +61,18 @@ CREATE TRIGGER trigger_matchmaking_queue_activity_tracking
     FOR EACH ROW
     EXECUTE FUNCTION auto_track_user_activity();
 
+-- Create trigger to track user activity when matchmaking queue is modified
+CREATE TRIGGER trigger_track_matchmaking_activity
+    AFTER INSERT OR UPDATE OR DELETE ON matchmaking_queue
+    FOR EACH ROW
+    EXECUTE FUNCTION auto_track_user_activity();
+
+-- Create trigger to automatically cleanup old data on interactions
+CREATE TRIGGER trigger_auto_cleanup_matchmaking_queue
+    AFTER INSERT ON matchmaking_queue
+    FOR EACH STATEMENT
+    EXECUTE FUNCTION cleanup_old_matchmaking_queue();
+
 -- Function to clean up old queue entries (older than 30 minutes)
 CREATE OR REPLACE FUNCTION cleanup_old_queue_entries()
 RETURNS void AS $$
@@ -104,27 +116,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 2. Create archive table for old matchmaking queue entries
-CREATE TABLE IF NOT EXISTS matchmaking_queue_archive (
-    LIKE matchmaking_queue INCLUDING ALL
-);
-
--- 3. Function to archive old matchmaking queue entries instead of deleting
-CREATE OR REPLACE FUNCTION archive_old_matchmaking_queue()
-RETURNS void AS $$
-BEGIN
-    -- Archive queue entries older than 1 month
-    WITH archived_queue AS (
-        DELETE FROM matchmaking_queue 
-        WHERE created_at < NOW() - INTERVAL '1 month'
-        RETURNING *
-    )
-    INSERT INTO matchmaking_queue_archive 
-    SELECT * FROM archived_queue;
-END;
-$$ LANGUAGE plpgsql;
-
--- 4. Get matchmaking queue statistics
+-- 2. Get matchmaking queue statistics
 CREATE OR REPLACE FUNCTION get_matchmaking_queue_stats()
 RETURNS TABLE (
     total_entries bigint,
