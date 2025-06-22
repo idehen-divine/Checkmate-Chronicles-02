@@ -156,3 +156,86 @@ CREATE TRIGGER trigger_game_messages_activity_tracking
     AFTER INSERT OR UPDATE OR DELETE ON game_messages
     FOR EACH ROW
     EXECUTE FUNCTION auto_track_user_activity();
+
+-- Create trigger to track user activity when messages are sent
+CREATE TRIGGER trigger_track_message_activity
+    AFTER INSERT OR UPDATE OR DELETE ON game_messages
+    FOR EACH ROW
+    EXECUTE FUNCTION auto_track_user_activity();
+
+-- OPTIMIZATION: Add retention policy and cleanup functions
+-- 1. Cleanup old game messages (1-month retention)
+CREATE OR REPLACE FUNCTION cleanup_old_game_messages()
+RETURNS void AS $$
+BEGIN
+    -- Delete messages older than 1 month for finished games
+    DELETE FROM game_messages 
+    WHERE created_at < NOW() - INTERVAL '1 month'
+    AND game_id IN (
+        SELECT id FROM games 
+        WHERE status = 'finished' 
+        AND updated_at < NOW() - INTERVAL '1 week'
+    );
+    
+    -- For active games, keep messages for last 7 days only
+    DELETE FROM game_messages 
+    WHERE created_at < NOW() - INTERVAL '7 days'
+    AND game_id IN (
+        SELECT id FROM games WHERE status = 'active'
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+-- 2. Create archive table for old messages
+CREATE TABLE IF NOT EXISTS game_messages_archive (
+    LIKE game_messages INCLUDING ALL
+);
+
+-- 3. Function to archive old messages instead of deleting
+CREATE OR REPLACE FUNCTION archive_old_game_messages()
+RETURNS void AS $$
+BEGIN
+    -- Archive messages older than 1 month for finished games
+    WITH archived_messages AS (
+        DELETE FROM game_messages 
+        WHERE created_at < NOW() - INTERVAL '1 month'
+        AND game_id IN (
+            SELECT id FROM games 
+            WHERE status = 'finished' 
+            AND updated_at < NOW() - INTERVAL '1 week'
+        )
+        RETURNING *
+    )
+    INSERT INTO game_messages_archive 
+    SELECT * FROM archived_messages;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 4. Get game messages statistics
+CREATE OR REPLACE FUNCTION get_game_messages_stats()
+RETURNS TABLE (
+    total_messages bigint,
+    messages_last_week bigint,
+    messages_last_month bigint,
+    active_game_messages bigint,
+    finished_game_messages bigint,
+    system_messages bigint,
+    user_messages bigint,
+    oldest_message timestamptz,
+    newest_message timestamptz
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(*) as total_messages,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 week') as messages_last_week,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 month') as messages_last_month,
+        COUNT(*) FILTER (WHERE game_id IN (SELECT id FROM games WHERE status = 'active')) as active_game_messages,
+        COUNT(*) FILTER (WHERE game_id IN (SELECT id FROM games WHERE status = 'finished')) as finished_game_messages,
+        COUNT(*) FILTER (WHERE sender_id IS NULL) as system_messages,
+        COUNT(*) FILTER (WHERE sender_id IS NOT NULL) as user_messages,
+        MIN(created_at) as oldest_message,
+        MAX(created_at) as newest_message
+    FROM game_messages;
+END;
+$$ LANGUAGE plpgsql;

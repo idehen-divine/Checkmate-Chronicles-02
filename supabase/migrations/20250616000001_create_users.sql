@@ -254,7 +254,7 @@ RETURNS jsonb AS $$
 DECLARE
     result jsonb;
 BEGIN
-    -- Update user's online status and last seen
+    -- Update user's online status and last seen (NO EVENT LOGGING)
     UPDATE users 
     SET 
         is_online = true,
@@ -262,21 +262,6 @@ BEGIN
         last_seen_method = p_activity_type,
         updated_at = now()
     WHERE id = p_user_id;
-    
-    -- Log the ping activity (if game_events table exists)
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'game_events') THEN
-        PERFORM log_game_event(
-            NULL,
-            p_user_id,
-            'user_ping',
-            jsonb_build_object(
-                'activity_type', p_activity_type,
-                'page_context', p_page_context,
-                'timestamp', now(),
-                'additional_data', p_additional_data
-            )
-        );
-    END IF;
     
     -- Return current user status
     SELECT jsonb_build_object(

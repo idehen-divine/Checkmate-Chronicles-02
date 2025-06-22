@@ -156,3 +156,113 @@ CREATE TRIGGER trigger_log_move_event
     AFTER INSERT ON game_moves
     FOR EACH ROW
     EXECUTE FUNCTION log_move_event();
+
+-- OPTIMIZATION: Add retention policy and cleanup functions
+-- 1. Add retention policy function (1-month retention)
+CREATE OR REPLACE FUNCTION cleanup_old_game_events()
+RETURNS void AS $$
+BEGIN
+    -- Delete events older than 1 month for finished games
+    DELETE FROM game_events 
+    WHERE created_at < NOW() - INTERVAL '1 month'
+    AND game_id IN (
+        SELECT id FROM games 
+        WHERE status = 'finished' 
+        AND updated_at < NOW() - INTERVAL '1 week'
+    );
+    
+    -- Delete move events older than 1 month (keep other events same duration)
+    DELETE FROM game_events 
+    WHERE created_at < NOW() - INTERVAL '1 month'
+    AND type = 'move_made'
+    AND game_id IN (
+        SELECT id FROM games WHERE status = 'finished'
+    );
+    
+    -- For active games, keep events for last 7 days only
+    DELETE FROM game_events 
+    WHERE created_at < NOW() - INTERVAL '7 days'
+    AND type = 'move_made'
+    AND game_id IN (
+        SELECT id FROM games WHERE status = 'active'
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+-- 2. Create archive table for old events
+CREATE TABLE IF NOT EXISTS game_events_archive (
+    LIKE game_events INCLUDING ALL
+);
+
+-- 3. Function to archive old events instead of deleting
+CREATE OR REPLACE FUNCTION archive_old_game_events()
+RETURNS void AS $$
+BEGIN
+    -- Archive events older than 1 month for finished games
+    WITH archived_events AS (
+        DELETE FROM game_events 
+        WHERE created_at < NOW() - INTERVAL '1 month'
+        AND game_id IN (
+            SELECT id FROM games 
+            WHERE status = 'finished' 
+            AND updated_at < NOW() - INTERVAL '1 week'
+        )
+        RETURNING *
+    )
+    INSERT INTO game_events_archive 
+    SELECT * FROM archived_events;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 4. Manual cleanup function with reporting
+CREATE OR REPLACE FUNCTION manual_cleanup_game_events()
+RETURNS TABLE (
+    deleted_count bigint,
+    message text
+) AS $$
+DECLARE
+    deleted_events bigint := 0;
+BEGIN
+    -- Get count before cleanup
+    SELECT COUNT(*) INTO deleted_events
+    FROM game_events 
+    WHERE created_at < NOW() - INTERVAL '1 month';
+    
+    -- Run cleanup
+    PERFORM cleanup_old_game_events();
+    
+    -- Calculate what was actually deleted
+    SELECT deleted_events - COUNT(*) INTO deleted_events
+    FROM game_events 
+    WHERE created_at < NOW() - INTERVAL '1 month';
+    
+    RETURN QUERY SELECT 
+        deleted_events,
+        format('Deleted %s events older than 1 month', deleted_events) as message;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 5. Get game events statistics
+CREATE OR REPLACE FUNCTION get_game_events_stats()
+RETURNS TABLE (
+    total_events bigint,
+    events_last_week bigint,
+    events_last_month bigint,
+    move_events_count bigint,
+    game_events_count bigint,
+    oldest_event timestamptz,
+    newest_event timestamptz
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(*) as total_events,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 week') as events_last_week,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 month') as events_last_month,
+        COUNT(*) FILTER (WHERE type = 'move_made') as move_events_count,
+        COUNT(*) FILTER (WHERE type != 'move_made') as game_events_count,
+        MIN(created_at) as oldest_event,
+        MAX(created_at) as newest_event
+    FROM game_events;
+END;
+$$ LANGUAGE plpgsql;

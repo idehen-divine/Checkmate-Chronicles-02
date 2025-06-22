@@ -214,3 +214,90 @@ CREATE TRIGGER trigger_rating_history_activity_tracking
     AFTER INSERT OR UPDATE OR DELETE ON rating_history
     FOR EACH ROW
     EXECUTE FUNCTION auto_track_user_activity();
+
+-- Create trigger to track user activity when rating history is created
+CREATE TRIGGER trigger_track_rating_activity
+    AFTER INSERT OR UPDATE OR DELETE ON rating_history
+    FOR EACH ROW
+    EXECUTE FUNCTION auto_track_user_activity();
+
+-- OPTIMIZATION: Add retention policy and cleanup functions
+-- 1. Cleanup old rating history (1-month retention)
+CREATE OR REPLACE FUNCTION cleanup_old_rating_history()
+RETURNS void AS $$
+BEGIN
+    -- Delete rating history older than 1 month for finished games
+    DELETE FROM rating_history 
+    WHERE created_at < NOW() - INTERVAL '1 month'
+    AND game_id IN (
+        SELECT id FROM games 
+        WHERE status = 'finished' 
+        AND updated_at < NOW() - INTERVAL '1 week'
+    );
+    
+    -- Keep only the most recent 100 rating changes per user (performance optimization)
+    DELETE FROM rating_history 
+    WHERE id NOT IN (
+        SELECT id FROM (
+            SELECT id,
+                   ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC) as rn
+            FROM rating_history
+        ) ranked
+        WHERE rn <= 100
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+-- 2. Create archive table for old rating history
+CREATE TABLE IF NOT EXISTS rating_history_archive (
+    LIKE rating_history INCLUDING ALL
+);
+
+-- 3. Function to archive old rating history instead of deleting
+CREATE OR REPLACE FUNCTION archive_old_rating_history()
+RETURNS void AS $$
+BEGIN
+    -- Archive rating history older than 1 month for finished games
+    WITH archived_ratings AS (
+        DELETE FROM rating_history 
+        WHERE created_at < NOW() - INTERVAL '1 month'
+        AND game_id IN (
+            SELECT id FROM games 
+            WHERE status = 'finished' 
+            AND updated_at < NOW() - INTERVAL '1 week'
+        )
+        RETURNING *
+    )
+    INSERT INTO rating_history_archive 
+    SELECT * FROM archived_ratings;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 4. Get rating history statistics
+CREATE OR REPLACE FUNCTION get_rating_history_stats()
+RETURNS TABLE (
+    total_records bigint,
+    records_last_week bigint,
+    records_last_month bigint,
+    unique_users bigint,
+    avg_rating_change numeric,
+    max_rating_gain integer,
+    max_rating_loss integer,
+    oldest_record timestamptz,
+    newest_record timestamptz
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(*) as total_records,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 week') as records_last_week,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 month') as records_last_month,
+        COUNT(DISTINCT user_id) as unique_users,
+        AVG(rating_change) as avg_rating_change,
+        MAX(rating_change) as max_rating_gain,
+        MIN(rating_change) as max_rating_loss,
+        MIN(created_at) as oldest_record,
+        MAX(created_at) as newest_record
+    FROM rating_history;
+END;
+$$ LANGUAGE plpgsql;

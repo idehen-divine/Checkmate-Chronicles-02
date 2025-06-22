@@ -117,3 +117,80 @@ CREATE TRIGGER trigger_game_moves_activity_tracking
     AFTER INSERT OR UPDATE OR DELETE ON game_moves
     FOR EACH ROW
     EXECUTE FUNCTION auto_track_user_activity();
+
+-- Create trigger to update game updated_at when move is made
+CREATE TRIGGER trigger_update_game_timestamp
+    AFTER INSERT ON game_moves
+    FOR EACH ROW
+    EXECUTE FUNCTION update_game_timestamp();
+
+-- OPTIMIZATION: Add retention policy and cleanup functions
+-- 1. Cleanup old game moves (1-month retention)
+CREATE OR REPLACE FUNCTION cleanup_old_game_moves()
+RETURNS void AS $$
+BEGIN
+    -- Delete moves older than 1 month for finished games
+    DELETE FROM game_moves 
+    WHERE created_at < NOW() - INTERVAL '1 month'
+    AND game_id IN (
+        SELECT id FROM games 
+        WHERE status = 'finished' 
+        AND updated_at < NOW() - INTERVAL '1 week'
+    );
+    
+    -- For active games, keep moves for last 7 days only
+    DELETE FROM game_moves 
+    WHERE created_at < NOW() - INTERVAL '7 days'
+    AND game_id IN (
+        SELECT id FROM games WHERE status = 'active'
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+-- 2. Create archive table for old moves
+CREATE TABLE IF NOT EXISTS game_moves_archive (LIKE game_moves INCLUDING ALL);
+
+-- 3. Function to archive old moves instead of deleting
+CREATE OR REPLACE FUNCTION archive_old_game_moves()
+RETURNS void AS $$
+BEGIN
+    -- Archive moves older than 1 month for finished games
+    WITH archived_moves AS (
+        DELETE FROM game_moves 
+        WHERE created_at < NOW() - INTERVAL '1 month'
+        AND game_id IN (
+            SELECT id FROM games 
+            WHERE status = 'finished' 
+            AND updated_at < NOW() - INTERVAL '1 week'
+        )
+        RETURNING *
+    )
+    INSERT INTO game_moves_archive 
+    SELECT * FROM archived_moves;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 4. Get game moves statistics
+CREATE OR REPLACE FUNCTION get_game_moves_stats()
+RETURNS TABLE (
+    total_moves bigint,
+    moves_last_week bigint,
+    moves_last_month bigint,
+    active_game_moves bigint,
+    finished_game_moves bigint,
+    oldest_move timestamptz,
+    newest_move timestamptz
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(*) as total_moves,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 week') as moves_last_week,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 month') as moves_last_month,
+        COUNT(*) FILTER (WHERE game_id IN (SELECT id FROM games WHERE status = 'active')) as active_game_moves,
+        COUNT(*) FILTER (WHERE game_id IN (SELECT id FROM games WHERE status = 'finished')) as finished_game_moves,
+        MIN(created_at) as oldest_move,
+        MAX(created_at) as newest_move
+    FROM game_moves;
+END;
+$$ LANGUAGE plpgsql;

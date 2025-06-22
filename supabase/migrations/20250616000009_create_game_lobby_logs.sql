@@ -134,3 +134,88 @@ CREATE TRIGGER trigger_game_lobby_logs_activity_tracking
     AFTER INSERT OR UPDATE OR DELETE ON game_lobby_logs
     FOR EACH ROW
     EXECUTE FUNCTION auto_track_user_activity();
+
+-- Create trigger to track user activity when lobby logs are created
+CREATE TRIGGER trigger_track_lobby_activity
+    AFTER INSERT OR UPDATE OR DELETE ON game_lobby_logs
+    FOR EACH ROW
+    EXECUTE FUNCTION auto_track_user_activity();
+
+-- OPTIMIZATION: Add retention policy and cleanup functions
+-- 1. Cleanup old game lobby logs (1-month retention)
+CREATE OR REPLACE FUNCTION cleanup_old_game_lobby_logs()
+RETURNS void AS $$
+BEGIN
+    -- Delete lobby logs older than 1 month for finished games
+    DELETE FROM game_lobby_logs 
+    WHERE created_at < NOW() - INTERVAL '1 month'
+    AND game_id IN (
+        SELECT id FROM games 
+        WHERE status = 'finished' 
+        AND updated_at < NOW() - INTERVAL '1 week'
+    );
+    
+    -- For active games, keep lobby logs for last 7 days only
+    DELETE FROM game_lobby_logs 
+    WHERE created_at < NOW() - INTERVAL '7 days'
+    AND game_id IN (
+        SELECT id FROM games WHERE status = 'active'
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+-- 2. Create archive table for old lobby logs
+CREATE TABLE IF NOT EXISTS game_lobby_logs_archive (
+    LIKE game_lobby_logs INCLUDING ALL
+);
+
+-- 3. Function to archive old lobby logs instead of deleting
+CREATE OR REPLACE FUNCTION archive_old_game_lobby_logs()
+RETURNS void AS $$
+BEGIN
+    -- Archive lobby logs older than 1 month for finished games
+    WITH archived_logs AS (
+        DELETE FROM game_lobby_logs 
+        WHERE created_at < NOW() - INTERVAL '1 month'
+        AND game_id IN (
+            SELECT id FROM games 
+            WHERE status = 'finished' 
+            AND updated_at < NOW() - INTERVAL '1 week'
+        )
+        RETURNING *
+    )
+    INSERT INTO game_lobby_logs_archive 
+    SELECT * FROM archived_logs;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 4. Get game lobby logs statistics
+CREATE OR REPLACE FUNCTION get_game_lobby_logs_stats()
+RETURNS TABLE (
+    total_logs bigint,
+    logs_last_week bigint,
+    logs_last_month bigint,
+    active_game_logs bigint,
+    finished_game_logs bigint,
+    join_logs bigint,
+    leave_logs bigint,
+    spectator_logs bigint,
+    oldest_log timestamptz,
+    newest_log timestamptz
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(*) as total_logs,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 week') as logs_last_week,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 month') as logs_last_month,
+        COUNT(*) FILTER (WHERE game_id IN (SELECT id FROM games WHERE status = 'active')) as active_game_logs,
+        COUNT(*) FILTER (WHERE game_id IN (SELECT id FROM games WHERE status = 'finished')) as finished_game_logs,
+        COUNT(*) FILTER (WHERE action = 'join') as join_logs,
+        COUNT(*) FILTER (WHERE action = 'leave') as leave_logs,
+        COUNT(*) FILTER (WHERE action = 'spectate') as spectator_logs,
+        MIN(created_at) as oldest_log,
+        MAX(created_at) as newest_log
+    FROM game_lobby_logs;
+END;
+$$ LANGUAGE plpgsql;

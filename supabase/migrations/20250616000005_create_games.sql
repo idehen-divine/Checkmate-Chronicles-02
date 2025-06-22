@@ -250,3 +250,79 @@ CREATE TRIGGER trigger_games_activity_tracking
     AFTER INSERT OR UPDATE OR DELETE ON games
     FOR EACH ROW
     EXECUTE FUNCTION auto_track_user_activity();
+
+-- Create trigger to track user activity when games are modified
+CREATE TRIGGER trigger_track_game_activity
+    AFTER INSERT OR UPDATE OR DELETE ON games
+    FOR EACH ROW
+    EXECUTE FUNCTION auto_track_user_activity();
+
+-- OPTIMIZATION: Add retention policy and cleanup functions
+-- 1. Cleanup old games (1-month retention)
+CREATE OR REPLACE FUNCTION cleanup_old_games()
+RETURNS void AS $$
+BEGIN
+    -- Delete finished games older than 1 month
+    DELETE FROM games 
+    WHERE status = 'finished' 
+    AND updated_at < NOW() - INTERVAL '1 month';
+    
+    -- Delete abandoned games older than 1 week
+    DELETE FROM games 
+    WHERE status = 'active' 
+    AND updated_at < NOW() - INTERVAL '1 week'
+    AND created_at < NOW() - INTERVAL '1 week';
+END;
+$$ LANGUAGE plpgsql;
+
+-- 2. Create archive table for old games
+CREATE TABLE IF NOT EXISTS games_archive (LIKE games INCLUDING ALL);
+
+-- 3. Function to archive old games instead of deleting
+CREATE OR REPLACE FUNCTION archive_old_games()
+RETURNS void AS $$
+BEGIN
+    -- Archive finished games older than 1 month
+    WITH archived_games AS (
+        DELETE FROM games 
+        WHERE status = 'finished' 
+        AND updated_at < NOW() - INTERVAL '1 month'
+        RETURNING *
+    )
+    INSERT INTO games_archive 
+    SELECT * FROM archived_games;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 4. Get games statistics
+CREATE OR REPLACE FUNCTION get_games_stats()
+RETURNS TABLE (
+    total_games bigint,
+    games_last_week bigint,
+    games_last_month bigint,
+    active_games bigint,
+    finished_games bigint,
+    bullet_games bigint,
+    blitz_games bigint,
+    rapid_games bigint,
+    classical_games bigint,
+    oldest_game timestamptz,
+    newest_game timestamptz
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(*) as total_games,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 week') as games_last_week,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 month') as games_last_month,
+        COUNT(*) FILTER (WHERE status = 'active') as active_games,
+        COUNT(*) FILTER (WHERE status = 'finished') as finished_games,
+        COUNT(*) FILTER (WHERE game_type = 'bullet') as bullet_games,
+        COUNT(*) FILTER (WHERE game_type = 'blitz') as blitz_games,
+        COUNT(*) FILTER (WHERE game_type = 'rapid') as rapid_games,
+        COUNT(*) FILTER (WHERE game_type = 'classical') as classical_games,
+        MIN(created_at) as oldest_game,
+        MAX(created_at) as newest_game
+    FROM games;
+END;
+$$ LANGUAGE plpgsql;

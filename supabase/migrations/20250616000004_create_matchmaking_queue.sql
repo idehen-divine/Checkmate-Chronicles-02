@@ -73,3 +73,90 @@ $$ LANGUAGE plpgsql;
 
 -- Create a function to be called periodically to clean up old entries
 -- This can be called by a cron job or application logic
+
+-- Create trigger to track user activity when matchmaking queue is modified
+CREATE TRIGGER trigger_track_matchmaking_activity
+    AFTER INSERT OR UPDATE OR DELETE ON matchmaking_queue
+    FOR EACH ROW
+    EXECUTE FUNCTION auto_track_user_activity();
+
+-- OPTIMIZATION: Add retention policy and cleanup functions
+-- 1. Cleanup old matchmaking queue entries (1-month retention)
+CREATE OR REPLACE FUNCTION cleanup_old_matchmaking_queue()
+RETURNS void AS $$
+BEGIN
+    -- Delete queue entries older than 1 month
+    DELETE FROM matchmaking_queue 
+    WHERE created_at < NOW() - INTERVAL '1 month';
+    
+    -- Delete stale queue entries (older than 1 hour without being matched)
+    DELETE FROM matchmaking_queue 
+    WHERE created_at < NOW() - INTERVAL '1 hour'
+    AND status = 'waiting';
+    
+    -- Clean up entries for users who are no longer online
+    DELETE FROM matchmaking_queue 
+    WHERE user_id IN (
+        SELECT id FROM users 
+        WHERE last_seen_at < NOW() - INTERVAL '5 minutes'
+        AND is_online = false
+    );
+END;
+$$ LANGUAGE plpgsql;
+
+-- 2. Create archive table for old matchmaking queue entries
+CREATE TABLE IF NOT EXISTS matchmaking_queue_archive (
+    LIKE matchmaking_queue INCLUDING ALL
+);
+
+-- 3. Function to archive old matchmaking queue entries instead of deleting
+CREATE OR REPLACE FUNCTION archive_old_matchmaking_queue()
+RETURNS void AS $$
+BEGIN
+    -- Archive queue entries older than 1 month
+    WITH archived_queue AS (
+        DELETE FROM matchmaking_queue 
+        WHERE created_at < NOW() - INTERVAL '1 month'
+        RETURNING *
+    )
+    INSERT INTO matchmaking_queue_archive 
+    SELECT * FROM archived_queue;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 4. Get matchmaking queue statistics
+CREATE OR REPLACE FUNCTION get_matchmaking_queue_stats()
+RETURNS TABLE (
+    total_entries bigint,
+    entries_last_week bigint,
+    entries_last_month bigint,
+    waiting_entries bigint,
+    matched_entries bigint,
+    cancelled_entries bigint,
+    bullet_queue bigint,
+    blitz_queue bigint,
+    rapid_queue bigint,
+    classical_queue bigint,
+    avg_wait_time interval,
+    oldest_entry timestamptz,
+    newest_entry timestamptz
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(*) as total_entries,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 week') as entries_last_week,
+        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '1 month') as entries_last_month,
+        COUNT(*) FILTER (WHERE status = 'waiting') as waiting_entries,
+        COUNT(*) FILTER (WHERE status = 'matched') as matched_entries,
+        COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled_entries,
+        COUNT(*) FILTER (WHERE game_type = 'bullet') as bullet_queue,
+        COUNT(*) FILTER (WHERE game_type = 'blitz') as blitz_queue,
+        COUNT(*) FILTER (WHERE game_type = 'rapid') as rapid_queue,
+        COUNT(*) FILTER (WHERE game_type = 'classical') as classical_queue,
+        AVG(CASE WHEN status != 'waiting' THEN updated_at - created_at END) as avg_wait_time,
+        MIN(created_at) as oldest_entry,
+        MAX(created_at) as newest_entry
+    FROM matchmaking_queue;
+END;
+$$ LANGUAGE plpgsql;
