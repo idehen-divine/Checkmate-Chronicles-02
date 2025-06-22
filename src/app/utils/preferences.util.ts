@@ -35,7 +35,7 @@ export function areNotificationsEnabled(preferences: UserPreferences): boolean {
  * Toggle a specific preference
  */
 export function togglePreference(
-    preferences: UserPreferences,
+    preferences: UserPreferences, 
     key: keyof UserPreferences
 ): UserPreferences {
     return {
@@ -128,4 +128,4 @@ export function getPreferencesSummary(preferences: UserPreferences): {
             notifications: notificationSettings.filter(Boolean).length
         }
     };
-} 
+}

@@ -102,7 +102,7 @@ export class MatchmakingService {
 
         // Update online status
         await this.supabaseService.updateUserProfile(user.id, {
-            is_online: true,
+                is_online: true,
             last_seen_at: new Date().toISOString(),
             last_seen_method: 'joining_queue'
         });
@@ -115,7 +115,7 @@ export class MatchmakingService {
             player_id: user.id,
             game_type: gameType,
             status: 'waiting'
-        });
+            });
 
         if (error) {
             console.error('Error joining matchmaking queue:', error);
@@ -282,17 +282,17 @@ export class MatchmakingService {
 
     // Get online players for challenges
     async getOnlinePlayers(): Promise<OnlinePlayer[]> {
-        const { data: players, error } = await this.supabaseService.db
-            .from('users')
+            const { data: players, error } = await this.supabaseService.db
+                .from('users')
             .select('id, username, avatar_url, elo, is_online, wins, losses, draws, last_seen_at')
-            .eq('is_online', true)
+                .eq('is_online', true)
             .order('elo', { ascending: false })
             .limit(50);
 
-        if (error) {
-            console.error('Error fetching online players:', error);
-            return [];
-        }
+            if (error) {
+                console.error('Error fetching online players:', error);
+                return [];
+            }
 
         return players || [];
     }
@@ -303,7 +303,7 @@ export class MatchmakingService {
         if (!user) return;
 
         const { error } = await this.supabaseService.updateUserProfile(user.id, {
-            is_online: isOnline,
+                is_online: isOnline,
             last_seen_at: new Date().toISOString(),
             last_seen_method: isOnline ? 'active' : 'offline'
         });
