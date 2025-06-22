@@ -1,13 +1,78 @@
-<ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-title>play</ion-title>
-  </ion-toolbar>
+<ion-header>
+	<app-header-toolbar title="Play"></app-header-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">play</ion-title>
-    </ion-toolbar>
-  </ion-header>
+<ion-content>
+	<div class="play-container">
+		<div class="play-content">
+
+			<!-- Header Section -->
+			<div class="content-header">
+				<h1>Choose Your Game Mode</h1>
+				<p>Select how you want to play chess</p>
+			</div>
+
+			<!-- Play Options Grid -->
+			<div class="play-options-grid">
+
+				<!-- Quick Match -->
+				<div class="play-option-card" (click)="navigateToQuickMatch()">
+					<div class="option-icon">
+						<ion-icon name="flash" color="primary"></ion-icon>
+					</div>
+					<div class="option-content">
+						<h3>Quick Match</h3>
+						<p>Find an opponent and start playing instantly</p>
+					</div>
+					<div class="option-status available">
+						<ion-icon name="checkmark-circle" color="success"></ion-icon>
+					</div>
+				</div>
+
+				<!-- Play with Friend -->
+				<div class="play-option-card disabled" (click)="showComingSoon('Play with Friend')">
+					<div class="option-icon">
+						<ion-icon name="people" color="medium"></ion-icon>
+					</div>
+					<div class="option-content">
+						<h3>Play with Friend</h3>
+						<p>Invite friends for a private game</p>
+					</div>
+					<div class="option-status coming-soon">
+						<span>Coming Soon</span>
+					</div>
+				</div>
+
+				<!-- Tournament -->
+				<div class="play-option-card disabled" (click)="showComingSoon('Tournament')">
+					<div class="option-icon">
+						<ion-icon name="trophy" color="medium"></ion-icon>
+					</div>
+					<div class="option-content">
+						<h3>Tournament</h3>
+						<p>Compete in structured tournaments</p>
+					</div>
+					<div class="option-status coming-soon">
+						<span>Coming Soon</span>
+					</div>
+				</div>
+
+				<!-- Play with AI -->
+				<div class="play-option-card disabled" (click)="showComingSoon('Play with AI')">
+					<div class="option-icon">
+						<ion-icon name="hardware-chip" color="medium"></ion-icon>
+					</div>
+					<div class="option-content">
+						<h3>Play with AI</h3>
+						<p>Challenge our advanced AI opponents</p>
+					</div>
+					<div class="option-status coming-soon">
+						<span>Coming Soon</span>
+					</div>
+				</div>
+
+			</div>
+
+		</div>
+	</div>
 </ion-content>

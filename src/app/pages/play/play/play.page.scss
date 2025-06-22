@@ -1,0 +1,198 @@
+// Play Page Styles
+.play-container {
+	display: flex;
+	flex-direction: column;
+	min-height: 100vh;
+	background: var(--app-background);
+}
+
+.play-content {
+	--background: var(--app-background);
+	--color: var(--app-white);
+	padding: 20px 16px 100px 16px; // Space for bottom nav on mobile
+	max-width: 1200px;
+	margin: 0 auto;
+	width: 100%;
+
+	@media (min-width: 1024px) {
+		padding: 40px;
+	}
+}
+
+// Content Header
+.content-header {
+	text-align: center;
+	margin-bottom: 40px;
+
+	h1 {
+		font-family: "Space Grotesk", sans-serif;
+		font-weight: 700;
+		font-size: 28px;
+		color: var(--app-white);
+		margin: 0 0 12px 0;
+
+		@media (min-width: 1024px) {
+			font-size: 36px;
+		}
+	}
+
+	p {
+		font-size: 16px;
+		color: var(--app-text-light);
+		margin: 0;
+		opacity: 0.8;
+
+		@media (min-width: 1024px) {
+			font-size: 18px;
+		}
+	}
+}
+
+// Play Options Grid
+.play-options-grid {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 20px;
+
+	@media (min-width: 768px) {
+		grid-template-columns: repeat(2, 1fr);
+		gap: 24px;
+	}
+
+	@media (min-width: 1024px) {
+		gap: 32px;
+	}
+}
+
+// Play Option Card
+.play-option-card {
+	background: var(--app-card-background);
+	border-radius: 16px;
+	padding: 24px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	border: 2px solid transparent;
+	position: relative;
+
+	&:hover:not(.disabled) {
+		transform: translateY(-4px);
+		background: var(--app-card-hover);
+		border-color: var(--app-primary);
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+	}
+
+	&.disabled {
+		cursor: not-allowed;
+		opacity: 0.6;
+
+		.option-icon ion-icon {
+			color: var(--app-text-medium) !important;
+		}
+
+		.option-content h3,
+		.option-content p {
+			color: var(--app-text-medium);
+		}
+	}
+
+	@media (min-width: 1024px) {
+		padding: 32px;
+	}
+}
+
+// Option Icon
+.option-icon {
+	margin-bottom: 20px;
+
+	ion-icon {
+		font-size: 48px;
+		transition: all 0.3s ease;
+
+		@media (min-width: 1024px) {
+			font-size: 56px;
+		}
+	}
+}
+
+// Option Content
+.option-content {
+	flex: 1;
+	margin-bottom: 16px;
+
+	h3 {
+		font-family: "Space Grotesk", sans-serif;
+		font-weight: 600;
+		font-size: 20px;
+		color: var(--app-white);
+		margin: 0 0 8px 0;
+
+		@media (min-width: 1024px) {
+			font-size: 24px;
+		}
+	}
+
+	p {
+		font-size: 14px;
+		color: var(--app-text-light);
+		margin: 0;
+		line-height: 1.5;
+
+		@media (min-width: 1024px) {
+			font-size: 16px;
+		}
+	}
+}
+
+// Option Status
+.option-status {
+	&.available {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+
+		ion-icon {
+			font-size: 20px;
+		}
+	}
+
+	&.coming-soon {
+		span {
+			background: var(--app-accent);
+			color: var(--app-black);
+			padding: 6px 12px;
+			border-radius: 20px;
+			font-size: 12px;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+
+			@media (min-width: 1024px) {
+				padding: 8px 16px;
+				font-size: 14px;
+			}
+		}
+	}
+}
+
+// Responsive Design
+@media (max-width: 767px) {
+	.play-option-card {
+		padding: 20px;
+	}
+
+	.option-icon ion-icon {
+		font-size: 40px;
+	}
+
+	.option-content h3 {
+		font-size: 18px;
+	}
+
+	.option-content p {
+		font-size: 13px;
+	}
+}
