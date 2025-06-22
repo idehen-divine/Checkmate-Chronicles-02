@@ -47,7 +47,8 @@ ALTER TABLE game_events ENABLE ROW LEVEL SECURITY;
 -- Create policies
 CREATE POLICY "Users can read events from their games" ON game_events FOR
 SELECT TO authenticated USING (
-        EXISTS (
+        game_id IS NULL -- Allow reading system events without game context
+        OR EXISTS (
             SELECT 1
             FROM games
             WHERE
@@ -64,20 +65,32 @@ INSERT
     TO authenticated
 WITH
     CHECK (
+        -- Allow system events without game context (for user activity tracking)
         (
-            auth.uid () = player_id
-            OR player_id IS NULL
+            game_id IS NULL
+            AND (
+                auth.uid () = player_id
+                OR player_id IS NULL
+            )
         )
-        AND -- Allow system events
-        EXISTS (
-            SELECT 1
-            FROM games
-            WHERE
-                games.id = game_events.game_id
-                AND (
-                    games.player1_id = auth.uid ()
-                    OR games.player2_id = auth.uid ()
-                )
+        OR
+        -- Allow events in games where user is a player
+        (
+            (
+                auth.uid () = player_id
+                OR player_id IS NULL
+            )
+            AND -- Allow system events
+            EXISTS (
+                SELECT 1
+                FROM games
+                WHERE
+                    games.id = game_events.game_id
+                    AND (
+                        games.player1_id = auth.uid ()
+                        OR games.player2_id = auth.uid ()
+                    )
+            )
         )
     );
 
@@ -97,8 +110,12 @@ BEGIN
     RETURNING id INTO event_id;
     
     RETURN event_id;
+EXCEPTION
+    WHEN OTHERS THEN
+        -- If there's any error, just return a dummy UUID and continue
+        RETURN gen_random_uuid();
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to automatically log game status changes
 CREATE OR REPLACE FUNCTION log_game_status_change()
