@@ -30,19 +30,6 @@
     <!-- Game Lobby Phase -->
     <div *ngIf="gameState === 'lobby'" class="game-lobby">
 
-      <!-- Game Toolbar -->
-      <div class="game-toolbar">
-        <ion-button fill="clear" size="small" (click)="openChatComingSoon()">
-          <ion-icon name="chatbubble" slot="start"></ion-icon>
-          Chat
-        </ion-button>
-
-        <ion-button fill="clear" size="small" (click)="openMoreOptions($event)" [disabled]="!isHost">
-          <ion-icon name="ellipsisVertical" slot="start"></ion-icon>
-          More
-        </ion-button>
-      </div>
-
       <!-- Host Indicator -->
       <div class="host-indicator">
         <ion-chip [color]="isHost ? 'success' : 'medium'">
@@ -142,28 +129,8 @@
   </div>
 </ion-content>
 
-<!-- Bottom Toolbar (only show in lobby phase) -->
-<ion-footer *ngIf="gameState === 'lobby'">
-  <ion-toolbar class="bottom-game-toolbar">
-    <ion-buttons slot="start">
-      <ion-button fill="clear" (click)="toggleChat()" [color]="chatVisible ? 'primary' : 'medium'">
-        <ion-icon name="chatbubble" slot="icon-only"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-
-    <ion-buttons slot="end">
-      <ion-button fill="clear" (click)="toggleHints()" [color]="hintsEnabled ? 'warning' : 'medium'"
-        [disabled]="!isHost">
-        <ion-icon name="bulb" slot="icon-only"></ion-icon>
-      </ion-button>
-
-      <ion-button fill="clear" (click)="openTimeModal()" [disabled]="!isHost">
-        <ion-icon name="time" slot="icon-only"></ion-icon>
-      </ion-button>
-
-      <ion-button fill="clear" (click)="openSettingsModal()" [disabled]="!isHost">
-        <ion-icon name="settings" slot="icon-only"></ion-icon>
-      </ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-footer>
+<!-- Lobby Toolbar (only show in lobby phase) -->
+<app-lobby-toolbar *ngIf="gameState === 'lobby'" [isHost]="isHost" [chatActive]="chatVisible"
+  [hintsEnabled]="hintsEnabled" (chatClick)="toggleChat()" (hintClick)="toggleHints()" (timeClick)="openTimeModal()"
+  (settingsClick)="openSettingsModal()">
+</app-lobby-toolbar>

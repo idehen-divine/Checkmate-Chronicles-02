@@ -44,6 +44,14 @@
 			color: var(--app-white);
 		}
 
+		&.active {
+			color: var(--app-primary);
+			
+			ion-icon {
+				color: var(--app-primary);
+			}
+		}
+
 		&[disabled] {
 			color: #4a4458;
 			opacity: 0.5;

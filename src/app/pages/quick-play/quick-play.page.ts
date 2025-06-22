@@ -17,6 +17,7 @@ import {
   close
 } from 'ionicons/icons';
 import { HeaderToolbarComponent } from 'src/app/components/navigation/header-toolbar/header-toolbar.component';
+import { LobbyToolbarComponent } from 'src/app/components/navigation/game-toolbar/game-toolbar.component';
 import { SupabaseService } from '../../services/supabase.service';
 
 export interface Player {
@@ -31,7 +32,7 @@ export interface Player {
   selector: 'app-quick-play',
   templateUrl: './quick-play.page.html',
   styleUrls: ['./quick-play.page.scss'],
-  imports: [CommonModule, IonicModule, HeaderToolbarComponent, FormsModule]
+  imports: [CommonModule, IonicModule, HeaderToolbarComponent, LobbyToolbarComponent, FormsModule]
 })
 export class QuickPlayPage implements OnInit, OnDestroy {
   // Game states
