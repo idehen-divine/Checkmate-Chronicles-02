@@ -90,7 +90,7 @@ BEGIN
     
     RETURN message_id;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to handle draw offers through messages
 CREATE OR REPLACE FUNCTION handle_draw_offer()
@@ -119,7 +119,7 @@ BEGIN
     
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Create trigger for draw offer handling
 CREATE TRIGGER trigger_handle_draw_offer

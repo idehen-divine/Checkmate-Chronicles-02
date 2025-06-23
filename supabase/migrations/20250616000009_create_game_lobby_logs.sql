@@ -87,7 +87,7 @@ BEGIN
     
     RETURN log_id;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Note: Player join events are now handled by triggers in the games table migration
 

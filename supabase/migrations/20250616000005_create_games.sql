@@ -167,7 +167,7 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE TRIGGER trigger_create_game_start_message
     AFTER UPDATE ON games
@@ -196,7 +196,7 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE TRIGGER trigger_create_game_end_message
     AFTER UPDATE ON games
@@ -220,7 +220,7 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE TRIGGER trigger_create_game_invitation_message
     AFTER INSERT ON games
@@ -233,7 +233,7 @@ RETURNS TRIGGER AS $$
 BEGIN
     -- Only when game is first created
     IF OLD IS NULL THEN
-        -- Both players join the lobby
+        -- Both players join the lobby using SECURITY DEFINER to bypass RLS
         INSERT INTO game_lobby_logs (game_id, player_id, event)
         VALUES 
             (NEW.id, NEW.player1_id, 'entered_lobby'),
@@ -241,7 +241,7 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE TRIGGER trigger_create_player_join_events
     AFTER INSERT ON games
