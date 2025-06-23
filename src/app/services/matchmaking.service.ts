@@ -17,7 +17,7 @@ export interface OnlinePlayer {
 }
 
 // Game mode types - can be extended for different game modes
-export type GameMode = 'quick-match' | 'tournament' | 'custom' | 'challenge' | 'ranked' | 'casual';
+export type GameMode = 'quick-match' | 'quick-match-ranked' | 'quick-match-unranked' | 'tournament' | 'custom' | 'challenge' | 'ranked' | 'casual';
 
 // Time control types for quick matches
 export type TimeControl = 'bullet' | 'blitz' | 'rapid' | 'classical';
@@ -112,7 +112,7 @@ export class MatchmakingService {
 
         // Update online status
         await this.supabaseService.updateUserProfile(user.id, {
-                is_online: true,
+            is_online: true,
             last_seen_at: new Date().toISOString(),
             last_seen_method: 'joining_queue'
         });
@@ -125,7 +125,7 @@ export class MatchmakingService {
             player_id: user.id,
             game_type: gameType,
             status: 'waiting'
-            });
+        });
 
         if (error) {
             console.error('Error joining matchmaking queue:', error);
@@ -266,7 +266,10 @@ export class MatchmakingService {
     private getDefaultTimeControlForGameMode(gameMode: GameMode): number {
         switch (gameMode) {
             case 'quick-match':
+            case 'quick-match-unranked':
                 return 10; // 10 minutes default for quick matches
+            case 'quick-match-ranked':
+                return 15; // 15 minutes for ranked quick matches
             case 'tournament':
                 return 15; // 15 minutes for tournament games
             case 'ranked':

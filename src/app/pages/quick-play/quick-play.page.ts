@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IonicModule, AlertController, PopoverController, ModalController } from '@ionic/angular';
@@ -45,6 +45,9 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 	gameMinutes = 15;
 	hintsEnabled = false;
 
+	// Game mode from query params
+	gameMode: 'ranked' | 'unranked' = 'unranked';
+
 	// Players
 	currentPlayer: Player | null = null;
 	opponent: Player | null = null;
@@ -66,6 +69,7 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 
 	constructor(
 		private router: Router,
+		private route: ActivatedRoute,
 		private supabaseService: SupabaseService,
 		private matchmakingService: MatchmakingService,
 		private alertController: AlertController,
@@ -88,6 +92,12 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 	}
 
 	ngOnInit() {
+		// Read query parameters
+		this.route.queryParams.subscribe(params => {
+			this.gameMode = params['mode'] === 'ranked' ? 'ranked' : 'unranked';
+			this.gameName = this.gameMode === 'ranked' ? 'Ranked Match' : 'Quick Match';
+		});
+
 		this.initializePlayer();
 		this.startRealMatchmaking();
 	}
@@ -134,9 +144,9 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 			this.onMatchFound(gameId);
 		});
 
-		// Join the matchmaking queue with quick-match mode
-		const timeControl = this.getGameTypeFromMinutes(this.gameMinutes);
-		this.matchmakingService.joinMatchmakingQueue('quick-match').catch(error => {
+		// Join the matchmaking queue with the appropriate game type based on mode
+		const gameType = this.gameMode === 'ranked' ? 'quick-match-ranked' : 'quick-match-unranked';
+		this.matchmakingService.joinMatchmakingQueue(gameType as any).catch(error => {
 			console.error('Error joining matchmaking queue:', error);
 			clearInterval(dotsInterval);
 			this.showMatchmakingError();

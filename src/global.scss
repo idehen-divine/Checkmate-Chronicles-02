@@ -116,11 +116,6 @@ body {
 
 /* Mobile bottom navigation spacing */
 @media (max-width: 1023px) {
-    ion-content {
-        --padding-bottom: 80px;
-        /* Space for fixed bottom navigation */
-    }
-
     /* Ensure main content doesn't overlap with bottom nav */
     ion-router-outlet {
         padding-bottom: 80px;

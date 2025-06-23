@@ -205,6 +205,21 @@ ion-content {
         font-weight: 600;
       }
     }
+
+    .action-section {
+      margin-top: 16px;
+      display: flex;
+      justify-content: center;
+
+      ion-button {
+        --border-radius: 24px;
+        --padding-top: 10px;
+        --padding-bottom: 10px;
+        --font-size: 12px;
+        font-weight: 600;
+        width: 80%;
+      }
+    }
   }
 }
 

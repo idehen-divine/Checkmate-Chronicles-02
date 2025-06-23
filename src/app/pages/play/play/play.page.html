@@ -6,71 +6,92 @@
 	<div class="play-container">
 		<div class="play-content">
 
-			<!-- Header Section -->
-			<div class="content-header">
-				<h1>Choose Your Game Mode</h1>
-				<p>Select how you want to play chess</p>
+			<!-- Play Options Section -->
+			<div class="play-options-section">
+				<h2 class="section-title">Choose Your Game Mode</h2>
+
+				<!-- Game Options Grid -->
+				<div class="game-options-grid">
+					<div class="play-option-card button-card" (click)="navigateToQuickMatch('unranked')">
+						<div class="option-icon">
+							<ion-icon name="flash" color="primary"></ion-icon>
+						</div>
+						<div class="option-content">
+							<h3>Quick Match - Unranked</h3>
+						</div>
+					</div>
+
+					<div class="play-option-card button-card" (click)="navigateToQuickMatch('ranked')">
+						<div class="option-icon">
+							<ion-icon name="trophy" color="warning"></ion-icon>
+						</div>
+						<div class="option-content">
+							<h3>Quick Match - Ranked</h3>
+						</div>
+					</div>
+
+					<div class="play-option-card button-card" (click)="navigateToComingSoon('Play With Friend')">
+						<div class="option-icon">
+							<ion-icon name="people" color="success"></ion-icon>
+						</div>
+						<div class="option-content">
+							<h3>Play With Friend</h3>
+						</div>
+					</div>
+
+					<div class="play-option-card button-card" (click)="navigateToComingSoon('Tournament')">
+						<div class="option-icon">
+							<ion-icon name="medal" color="tertiary"></ion-icon>
+						</div>
+						<div class="option-content">
+							<h3>Tournament</h3>
+						</div>
+					</div>
+
+					<div class="play-option-card button-card" (click)="navigateToComingSoon('Play With AI')">
+						<div class="option-icon">
+							<ion-icon name="hardware-chip" color="danger"></ion-icon>
+						</div>
+						<div class="option-content">
+							<h3>Play With AI</h3>
+						</div>
+					</div>
+				</div>
 			</div>
 
-			<!-- Play Options Grid -->
-			<div class="play-options-grid">
-
-				<!-- Quick Match -->
-				<div class="play-option-card" (click)="navigateToQuickMatch()">
-					<div class="option-icon">
-						<ion-icon name="flash" color="primary"></ion-icon>
+			<!-- Quick Stats Section -->
+			<div class="quick-stats-section">
+				<h3>Your Stats</h3>
+				<div class="stats-grid">
+					<div class="stat-item">
+						<div class="stat-icon">
+							<ion-icon name="game-controller" color="primary"></ion-icon>
+						</div>
+						<div class="stat-value">{{ playerStats.gamesPlayed || 0 }}</div>
+						<div class="stat-label">Games Played</div>
 					</div>
-					<div class="option-content">
-						<h3>Quick Match</h3>
-						<p>Find an opponent and start playing instantly</p>
+					<div class="stat-item">
+						<div class="stat-icon">
+							<ion-icon name="trending-up" color="success"></ion-icon>
+						</div>
+						<div class="stat-value">{{ playerStats.winRate || 0 }}%</div>
+						<div class="stat-label">Win Rate</div>
 					</div>
-					<div class="option-status available">
-						<ion-icon name="checkmark-circle" color="success"></ion-icon>
+					<div class="stat-item">
+						<div class="stat-icon">
+							<ion-icon name="star" color="warning"></ion-icon>
+						</div>
+						<div class="stat-value">{{ playerStats.currentRating || 1200 }}</div>
+						<div class="stat-label">Current Rating</div>
 					</div>
-				</div>
-
-				<!-- Play with Friend -->
-				<div class="play-option-card disabled" (click)="showComingSoon('Play with Friend')">
-					<div class="option-icon">
-						<ion-icon name="people" color="medium"></ion-icon>
-					</div>
-					<div class="option-content">
-						<h3>Play with Friend</h3>
-						<p>Invite friends for a private game</p>
-					</div>
-					<div class="option-status coming-soon">
-						<span>Coming Soon</span>
-					</div>
-				</div>
-
-				<!-- Tournament -->
-				<div class="play-option-card disabled" (click)="showComingSoon('Tournament')">
-					<div class="option-icon">
-						<ion-icon name="trophy" color="medium"></ion-icon>
-					</div>
-					<div class="option-content">
-						<h3>Tournament</h3>
-						<p>Compete in structured tournaments</p>
-					</div>
-					<div class="option-status coming-soon">
-						<span>Coming Soon</span>
+					<div class="stat-item">
+						<div class="stat-icon">
+							<ion-icon name="ribbon" color="tertiary"></ion-icon>
+						</div>
+						<div class="stat-value">{{ playerStats.rank || 'Unranked' }}</div>
+						<div class="stat-label">Rank</div>
 					</div>
 				</div>
-
-				<!-- Play with AI -->
-				<div class="play-option-card disabled" (click)="showComingSoon('Play with AI')">
-					<div class="option-icon">
-						<ion-icon name="hardware-chip" color="medium"></ion-icon>
-					</div>
-					<div class="option-content">
-						<h3>Play with AI</h3>
-						<p>Challenge our advanced AI opponents</p>
-					</div>
-					<div class="option-status coming-soon">
-						<span>Coming Soon</span>
-					</div>
-				</div>
-
 			</div>
 
 		</div>
