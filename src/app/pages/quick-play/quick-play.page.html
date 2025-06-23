@@ -6,7 +6,7 @@
 	<div class="quick-play-container">
 
 		<!-- Matchmaking Phase -->
-		<div *ngIf="gameState === 'finding-match'" class="matchmaking-phase">
+		<div *ngIf="matchmakingState.status === 'waiting'" class="matchmaking-phase">
 			<div class="matchmaking-content">
 				<div class="loading-animation">
 					<ion-spinner name="dots" color="primary" size="large"></ion-spinner>
@@ -36,7 +36,7 @@
 		</div>
 
 		<!-- Game Lobby Phase -->
-		<div *ngIf="gameState === 'lobby'" class="game-lobby">
+		<div *ngIf="matchmakingState.status === 'matched'" class="game-lobby">
 			<!-- Host Indicator -->
 			<div class="host-indicator">
 				<ion-chip [color]="isHost ? 'success' : 'medium'">
@@ -71,17 +71,18 @@
 						</ion-avatar>
 						<div class="player-details">
 							<h3>{{ currentPlayer?.username || 'You' }}</h3>
-							<p>1200 ELO</p>
+							<p>{{ currentPlayer?.elo || 1200 }} ELO</p>
 							<div class="player-label" [class.host-label]="isHost">
 								{{ isHost ? 'Host' : 'Guest' }}
 							</div>
 						</div>
 					</div>
 					<div class="player-status">
-						<ion-icon [name]="isReady ? 'checkmark' : 'time'" [color]="isReady ? 'success' : 'medium'">
+						<ion-icon [name]="matchmakingState.currentUserReady ? 'checkmark' : 'time'"
+							[color]="matchmakingState.currentUserReady ? 'success' : 'medium'">
 						</ion-icon>
-						<span [class.ready]="isReady">
-							{{ isReady ? 'Ready' : 'Not Ready' }}
+						<span [class.ready]="matchmakingState.currentUserReady">
+							{{ matchmakingState.currentUserReady ? 'Ready' : 'Not Ready' }}
 						</span>
 					</div>
 				</div>
@@ -98,7 +99,7 @@
 						</ion-avatar>
 						<div class="player-details">
 							<h3>{{ opponent?.username }}</h3>
-							<p>1650 ELO</p>
+							<p>{{ opponent?.elo || 1200 }} ELO</p>
 							<div class="player-label" [class.host-label]="opponent?.isHost">
 								{{ opponent?.isHost ? 'Host' : 'Guest' }}
 							</div>
@@ -124,11 +125,12 @@
 
 			<!-- Ready Button -->
 			<div class="ready-section">
-				<ion-button expand="block" size="large" [color]="isReady ? 'medium' : 'success'" (click)="toggleReady()"
+				<ion-button expand="block" size="large"
+					[color]="matchmakingState.currentUserReady ? 'medium' : 'success'" (click)="toggleReady()"
 					[disabled]="!canClickReady()">
-					<ion-icon [name]="isReady ? 'checkmark' : 'play'" slot="start">
+					<ion-icon [name]="matchmakingState.currentUserReady ? 'checkmark' : 'play'" slot="start">
 					</ion-icon>
-					{{ isReady ? 'Cancel Ready' : 'Ready to Play' }}
+					{{ matchmakingState.currentUserReady ? 'Cancel Ready' : 'Ready to Play' }}
 				</ion-button>
 			</div>
 		</div>
@@ -137,7 +139,7 @@
 </ion-content>
 
 <!-- Lobby Toolbar (only show in lobby phase) -->
-<app-lobby-toolbar *ngIf="gameState === 'lobby'" [isHost]="isHost" [chatActive]="chatVisible"
+<app-lobby-toolbar *ngIf="matchmakingState.status === 'matched'" [isHost]="isHost" [chatActive]="chatVisible"
 	[hintsEnabled]="hintsEnabled" (chatClick)="toggleChat()" (hintClick)="toggleHints()" (timeClick)="openTimeModal()"
 	(settingsClick)="openSettingsModal()">
 </app-lobby-toolbar>

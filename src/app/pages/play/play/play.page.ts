@@ -4,6 +4,18 @@ import { FormsModule } from '@angular/forms';
 import { IonContent, IonHeader, IonIcon, ToastController } from '@ionic/angular/standalone';
 import { Router } from '@angular/router';
 import { HeaderToolbarComponent } from '../../../components/navigation/header-toolbar/header-toolbar.component';
+import { addIcons } from 'ionicons';
+import {
+  flash,
+  trophy,
+  people,
+  medal,
+  hardwareChip,
+  gameController,
+  trendingUp,
+  star,
+  ribbon
+} from 'ionicons/icons';
 
 @Component({
   selector: 'app-play',
@@ -32,7 +44,19 @@ export class PlayPage implements OnInit {
   constructor(
     private router: Router,
     private toastController: ToastController
-  ) { }
+  ) {
+    addIcons({
+      flash,
+      trophy,
+      people,
+      medal,
+      hardwareChip,
+      gameController,
+      trendingUp,
+      star,
+      ribbon
+    });
+  }
 
   ngOnInit() {
     this.loadPlayerStats();

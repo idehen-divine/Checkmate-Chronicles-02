@@ -19,7 +19,7 @@ import {
 import { HeaderToolbarComponent } from 'src/app/components/navigation/header-toolbar/header-toolbar.component';
 import { LobbyToolbarComponent } from 'src/app/components/navigation/game-toolbar/game-toolbar.component';
 import { SupabaseService, MatchmakingService } from '../../services';
-import type { TimeControl } from '../../services/matchmaking.service';
+import type { TimeControl, MatchmakingState, LobbyStatus } from '../../services/matchmaking.service';
 import { Subscription } from 'rxjs';
 
 export interface Player {
@@ -28,6 +28,7 @@ export interface Player {
 	avatar?: string;
 	ready: boolean;
 	isHost: boolean;
+	elo?: number;
 }
 
 @Component({
@@ -37,9 +38,6 @@ export interface Player {
 	imports: [CommonModule, IonicModule, HeaderToolbarComponent, LobbyToolbarComponent, FormsModule]
 })
 export class QuickPlayPage implements OnInit, OnDestroy {
-	// Game states
-	gameState: 'finding-match' | 'lobby' | 'starting' = 'finding-match';
-
 	// Game settings (controlled by host)
 	gameName = 'Quick-Play';
 	gameMinutes = 15;
@@ -53,19 +51,13 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 	opponent: Player | null = null;
 	isHost = false;
 
-	// Game ID from matchmaking
-	gameId: string | null = null;
-
-	// UI state
-	isReady = false;
-	opponentReady = false;
-	gameStarting = false;
+	// Matchmaking state
+	matchmakingState: MatchmakingState = { status: 'waiting' };
 	matchmakingDots = '';
 	chatVisible = false;
 
 	// Subscriptions
-	private matchFoundSubscription?: Subscription;
-	private queueSubscription?: Subscription;
+	private matchmakingSubscription?: Subscription;
 
 	constructor(
 		private router: Router,
@@ -91,14 +83,14 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 		});
 	}
 
-	ngOnInit() {
+	async ngOnInit() {
 		// Read query parameters
 		this.route.queryParams.subscribe(params => {
 			this.gameMode = params['mode'] === 'ranked' ? 'ranked' : 'unranked';
 			this.gameName = this.gameMode === 'ranked' ? 'Ranked Match' : 'Quick Match';
 		});
 
-		this.initializePlayer();
+		await this.initializePlayer();
 		this.startRealMatchmaking();
 	}
 
@@ -111,23 +103,32 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 		this.matchmakingService.leaveMatchmakingQueue();
 
 		// Unsubscribe from observables
-		if (this.matchFoundSubscription) {
-			this.matchFoundSubscription.unsubscribe();
-		}
-		if (this.queueSubscription) {
-			this.queueSubscription.unsubscribe();
+		if (this.matchmakingSubscription) {
+			this.matchmakingSubscription.unsubscribe();
 		}
 	}
 
-	private initializePlayer() {
+	private async initializePlayer() {
 		if (this.supabaseService.user) {
+			// Get user's current ELO from the database
+			const { data: userData, error } = await this.supabaseService.db
+				.from('users')
+				.select('username, elo')
+				.eq('id', this.supabaseService.user.id)
+				.single();
+
 			this.currentPlayer = {
 				id: this.supabaseService.user.id,
-				username: this.supabaseService.user.user_metadata?.['username'] || 'Player',
+				username: userData?.username || this.supabaseService.user.user_metadata?.['username'] || 'Player',
 				avatar: '/assets/images/profile-avatar.png',
 				ready: false,
-				isHost: false
+				isHost: false,
+				elo: userData?.elo || 1200 // Default to 1200 if no ELO found
 			};
+
+			if (error) {
+				console.error('Error fetching user ELO:', error);
+			}
 		}
 	}
 
@@ -138,10 +139,29 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 			this.changeDetectorRef.detectChanges();
 		}, 500);
 
-		// Subscribe to match found events
-		this.matchFoundSubscription = this.matchmakingService.subscribeToMatchFound((gameId: string) => {
-			clearInterval(dotsInterval);
-			this.onMatchFound(gameId);
+		// Subscribe to matchmaking state changes
+		this.matchmakingSubscription = this.matchmakingService.matchmakingState$.subscribe(async (state) => {
+			console.log('🎮 Matchmaking state changed:', state);
+			this.matchmakingState = state;
+
+			// Handle different states
+			if (state.status === 'matched' && state.gameId && !this.opponent) {
+				clearInterval(dotsInterval);
+				await this.handleMatchFound(state.gameId);
+			} else if (state.status === 'cancelled') {
+				clearInterval(dotsInterval);
+				this.showMatchmakingError();
+			} else if (state.lobbyStatus === 'starting') {
+				// Navigate to game when it's starting
+				this.navigateToGameWhenReady();
+			}
+
+			// Update opponent ready state if we have an opponent
+			if (this.opponent && state.opponentReady !== undefined) {
+				this.opponent.ready = state.opponentReady;
+			}
+
+			this.changeDetectorRef.detectChanges();
 		});
 
 		// Join the matchmaking queue with the appropriate game type based on mode
@@ -151,20 +171,10 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 			clearInterval(dotsInterval);
 			this.showMatchmakingError();
 		});
-
-		// Subscribe to queue status
-		this.queueSubscription = this.matchmakingService.inQueue$.subscribe(inQueue => {
-			if (!inQueue && this.gameState === 'finding-match') {
-				// If we're not in queue anymore but still finding match, there might be an error
-				clearInterval(dotsInterval);
-			}
-		});
 	}
 
-	private async onMatchFound(gameId: string) {
+	private async handleMatchFound(gameId: string) {
 		console.log('🎮 Match found! Game ID:', gameId);
-		// Store the game ID for navigation
-		this.gameId = gameId;
 
 		try {
 			// Get game details first
@@ -180,10 +190,10 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 				return;
 			}
 
-			// Get player details separately
+			// Get player details separately including ELO
 			const { data: players, error: playersError } = await this.supabaseService.db
 				.from('users')
-				.select('id, username')
+				.select('id, username, elo')
 				.in('id', [game.player1_id, game.player2_id]);
 
 			if (playersError || !players || players.length !== 2) {
@@ -242,12 +252,12 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 				username: opponentData.username,
 				avatar: '/assets/images/profile-avatar-large.png',
 				ready: false,
-				isHost: !this.isHost
+				isHost: !this.isHost,
+				elo: opponentData.elo || 1200 // Default to 1200 if no ELO found
 			};
 
-			// Switch to lobby state
-			this.gameState = 'lobby';
-			this.changeDetectorRef.detectChanges();
+			// Enter the lobby (this will be tracked by the service)
+			await this.enterLobby(gameId);
 
 			console.log('✅ Lobby setup complete:', {
 				currentPlayer: this.currentPlayer,
@@ -258,6 +268,23 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 		} catch (error) {
 			console.error('Error setting up lobby:', error);
 			this.showMatchmakingError();
+		}
+	}
+
+	private async enterLobby(gameId: string) {
+		// Log that this player has entered the lobby
+		const { error } = await this.supabaseService.db
+			.from('game_lobby_logs')
+			.insert({
+				game_id: gameId,
+				player_id: this.supabaseService.user?.id,
+				event: 'entered_lobby'
+			});
+
+		if (error) {
+			console.error('Error logging lobby entry:', error);
+		} else {
+			console.log('✅ Entered lobby successfully');
 		}
 	}
 
@@ -272,7 +299,10 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 				},
 				{
 					text: 'Cancel',
-					handler: () => this.router.navigate(['/dashboard'])
+					handler: () => {
+						this.cleanup();
+						this.router.navigate(['/play']);
+					}
 				}
 			]
 		});
@@ -280,65 +310,36 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 	}
 
 	async toggleReady() {
-		if (this.gameState !== 'lobby' || this.gameStarting) return;
+		if (!this.matchmakingState.gameId || this.matchmakingState.lobbyStatus === 'countdown' || this.matchmakingState.lobbyStatus === 'starting') return;
 
-		this.isReady = !this.isReady;
+		const newReadyState = !(this.matchmakingState.currentUserReady || false);
+
+		// Update ready state in the matchmaking service
+		await this.matchmakingService.setPlayerReady(newReadyState);
+
+		// Update local UI
 		if (this.currentPlayer) {
-			this.currentPlayer.ready = this.isReady;
-		}
-
-		// In real implementation, you'd notify the opponent via real-time updates
-		// For now, simulate opponent also getting ready after a delay
-		if (this.isReady && this.opponent && !this.opponent.ready) {
-			setTimeout(() => {
-				if (this.opponent) {
-					this.opponent.ready = true;
-					this.opponentReady = true;
-					this.changeDetectorRef.detectChanges();
-					this.startGame();
-				}
-			}, 2000);
+			this.currentPlayer.ready = newReadyState;
 		}
 
 		this.changeDetectorRef.detectChanges();
 	}
 
-	private async startGame() {
-		if (!this.currentPlayer?.ready || !this.opponent?.ready) return;
-
-		this.gameStarting = true;
-		this.gameState = 'starting';
-
-		const alert = await this.alertController.create({
-			header: 'Starting Game',
-			message: 'Game will start in 3 seconds...',
-			backdropDismiss: false,
-			buttons: []
-		});
-		await alert.present();
-
-		let countdown = 3;
-		const countdownInterval = setInterval(async () => {
-			countdown--;
-			if (countdown > 0) {
-				alert.message = `Game will start in ${countdown} seconds...`;
-			} else {
-				clearInterval(countdownInterval);
-				await alert.dismiss();
-				this.navigateToGame();
-			}
-		}, 1000);
+	private async navigateToGameWhenReady() {
+		if (this.matchmakingState.lobbyStatus === 'starting') {
+			this.navigateToGame();
+		}
 	}
 
 	private navigateToGame() {
-		if (!this.gameId) {
+		if (!this.matchmakingState.gameId) {
 			console.error('No game ID available for navigation');
 			return;
 		}
 
-		console.log('🚀 Navigating to game:', this.gameId);
+		console.log('🚀 Navigating to game:', this.matchmakingState.gameId);
 		// Navigate to the actual game with the real game ID
-		this.router.navigate(['/game', this.gameId], {
+		this.router.navigate(['/game', this.matchmakingState.gameId], {
 			queryParams: {
 				minutes: this.gameMinutes,
 				hints: this.hintsEnabled,
@@ -378,21 +379,36 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 	}
 
 	getGameStatus(): string {
-		if (this.gameState === 'finding-match') {
+		const { status, lobbyStatus, currentUserReady, opponentReady, countdown } = this.matchmakingState;
+
+		if (status === 'waiting') {
 			return `Finding match${this.matchmakingDots}`;
 		}
-		if (this.gameState === 'starting') {
+
+		if (lobbyStatus === 'waiting_for_opponent') {
+			return 'Waiting for opponent to join lobby...';
+		}
+
+		if (lobbyStatus === 'countdown' && countdown !== undefined) {
+			return `Game starting in ${countdown}...`;
+		}
+
+		if (lobbyStatus === 'starting') {
 			return 'Starting game...';
 		}
-		if (this.isReady && this.opponentReady) {
+
+		if (currentUserReady && opponentReady) {
 			return 'Both players ready! Starting soon...';
 		}
-		if (this.isReady) {
+
+		if (currentUserReady) {
 			return 'You are ready. Waiting for opponent...';
 		}
-		if (this.opponentReady) {
+
+		if (opponentReady) {
 			return 'Opponent is ready. Click Ready to start!';
 		}
+
 		return 'Click Ready when you are prepared to play!';
 	}
 
@@ -405,12 +421,16 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 	}
 
 	canClickReady(): boolean {
-		return this.gameState === 'lobby' && !this.gameStarting;
+		const { status, lobbyStatus } = this.matchmakingState;
+		return status === 'matched' &&
+			lobbyStatus !== 'waiting_for_opponent' &&
+			lobbyStatus !== 'countdown' &&
+			lobbyStatus !== 'starting';
 	}
 
 	// Add method to handle back navigation
 	async onBackPressed() {
-		if (this.gameState === 'finding-match') {
+		if (this.matchmakingState.status === 'waiting') {
 			const alert = await this.alertController.create({
 				header: 'Leave Matchmaking?',
 				message: 'Are you sure you want to stop looking for a match?',
