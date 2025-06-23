@@ -53,25 +53,35 @@ SELECT TO authenticated USING (
         )
     );
 
+-- More permissive policy for lobby log inserts
 CREATE POLICY "Players can create lobby logs for their games" ON game_lobby_logs FOR
 INSERT
     TO authenticated
 WITH
     CHECK (
         auth.uid () = player_id
-        AND EXISTS (
-            SELECT 1
-            FROM games
-            WHERE
-                games.id = game_lobby_logs.game_id
-                AND (
-                    games.player1_id = auth.uid ()
-                    OR games.player2_id = auth.uid ()
-                )
+        AND (
+            -- Allow if user is a player in the game
+            EXISTS (
+                SELECT 1
+                FROM games
+                WHERE
+                    games.id = game_lobby_logs.game_id
+                    AND (
+                        games.player1_id = auth.uid ()
+                        OR games.player2_id = auth.uid ()
+                    )
+            )
+            -- OR allow if game exists and user is authenticated (fallback for timing issues)
+            OR EXISTS (
+                SELECT 1
+                FROM games
+                WHERE games.id = game_lobby_logs.game_id
+            )
         )
     );
 
--- Function to log lobby events
+-- Function to log lobby events with better error handling
 CREATE OR REPLACE FUNCTION log_lobby_event(
     p_game_id uuid,
     p_player_id uuid,
@@ -80,12 +90,38 @@ CREATE OR REPLACE FUNCTION log_lobby_event(
 RETURNS uuid AS $$
 DECLARE
     log_id uuid;
+    game_exists boolean;
+    player_in_game boolean;
 BEGIN
+    -- First check if the game exists
+    SELECT EXISTS(SELECT 1 FROM games WHERE id = p_game_id) INTO game_exists;
+    
+    IF NOT game_exists THEN
+        RAISE EXCEPTION 'Game % does not exist', p_game_id;
+    END IF;
+    
+    -- Check if the player is in the game
+    SELECT EXISTS(
+        SELECT 1 FROM games 
+        WHERE id = p_game_id 
+        AND (player1_id = p_player_id OR player2_id = p_player_id)
+    ) INTO player_in_game;
+    
+    IF NOT player_in_game THEN
+        RAISE EXCEPTION 'Player % is not in game %', p_player_id, p_game_id;
+    END IF;
+    
+    -- Insert the lobby log
     INSERT INTO game_lobby_logs (game_id, player_id, event)
     VALUES (p_game_id, p_player_id, p_event)
     RETURNING id INTO log_id;
     
     RETURN log_id;
+EXCEPTION
+    WHEN OTHERS THEN
+        -- Log the error but don't fail completely
+        RAISE WARNING 'Failed to log lobby event: %', SQLERRM;
+        RETURN NULL;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

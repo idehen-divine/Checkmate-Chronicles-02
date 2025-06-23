@@ -33,6 +33,13 @@ export class NotificationService {
     }
 
     /**
+     * Show error toast message
+     */
+    async showError(message: string): Promise<void> {
+        await this.showToast(message, 'error', 3000);
+    }
+
+    /**
      * Show game-specific toast messages
      */
     async showGameMessage(messageKey: keyof typeof NotificationUtils.GAME_MESSAGES): Promise<void> {

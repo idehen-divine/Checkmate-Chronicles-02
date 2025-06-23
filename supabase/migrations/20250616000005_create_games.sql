@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS games (
         )
     ) NULL,
     meta jsonb DEFAULT '{}' NOT NULL, -- Game state (board, clocks, moves, etc.)
+    slug text, -- Human-readable game identifier (e.g., quick-match-00001)
     created_at timestamptz DEFAULT now() NOT NULL,
     updated_at timestamptz DEFAULT now() NOT NULL,
     CONSTRAINT different_players CHECK (player1_id != player2_id)
@@ -48,6 +49,76 @@ CREATE INDEX IF NOT EXISTS idx_games_winner_id ON games (winner_id);
 CREATE INDEX IF NOT EXISTS idx_games_created_at ON games (created_at);
 
 CREATE INDEX IF NOT EXISTS idx_games_updated_at ON games (updated_at);
+
+-- Create unique index for slug (allowing NULL for games without slugs)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_games_slug_unique ON games (slug)
+WHERE
+    slug IS NOT NULL;
+
+-- Index for slug-based queries
+CREATE INDEX IF NOT EXISTS idx_games_slug_status ON games (slug, status);
+
+-- Function to generate unique slug for games
+CREATE OR REPLACE FUNCTION generate_game_slug(game_type text, game_id uuid)
+RETURNS text AS $$
+DECLARE
+    base_slug text;
+    counter integer;
+    new_slug text;
+    slug_exists boolean;
+BEGIN
+    -- Create base slug from game type
+    base_slug := lower(replace(game_type, ' ', '-'));
+    
+    -- Start with counter 1
+    counter := 1;
+    
+    -- Keep trying until we find a unique slug
+    LOOP
+        new_slug := base_slug || '-' || lpad(counter::text, 5, '0');
+        
+        -- Check if slug exists (excluding current game)
+        SELECT EXISTS(
+            SELECT 1 FROM games 
+            WHERE slug = new_slug 
+            AND id != game_id
+        ) INTO slug_exists;
+        
+        -- If slug doesn't exist, use it
+        IF NOT slug_exists THEN
+            RETURN new_slug;
+        END IF;
+        
+        -- Try next counter
+        counter := counter + 1;
+        
+        -- Safety check to prevent infinite loop
+        IF counter > 99999 THEN
+            -- Fallback to uuid-based slug
+            RETURN base_slug || '-' || substring(game_id::text from 1 for 8);
+        END IF;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to auto-generate slug on game creation
+CREATE OR REPLACE FUNCTION auto_generate_game_slug()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Only generate slug if it's not already set
+    IF NEW.slug IS NULL THEN
+        NEW.slug := generate_game_slug(NEW.game_type, NEW.id);
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger to auto-generate slug before insert
+CREATE TRIGGER trigger_auto_generate_game_slug
+    BEFORE INSERT ON games
+    FOR EACH ROW
+    EXECUTE FUNCTION auto_generate_game_slug();
 
 -- Enable Row Level Security
 ALTER TABLE games ENABLE ROW LEVEL SECURITY;
@@ -73,6 +144,13 @@ UPDATE TO authenticated USING (
     auth.uid () = player1_id
     OR auth.uid () = player2_id
 );
+
+-- Allow public read access for games by slug (for spectators)
+CREATE POLICY "Public can read games by slug" ON games FOR
+SELECT TO anon USING (slug IS NOT NULL);
+
+CREATE POLICY "Authenticated can read games by slug" ON games FOR
+SELECT TO authenticated USING (slug IS NOT NULL);
 
 -- Create trigger to automatically update updated_at
 CREATE TRIGGER trigger_games_updated_at

@@ -73,6 +73,16 @@ export const routes: Routes = [
 				path: 'quick-match',
 				loadComponent: () => import('./pages/quick-play/quick-play.page').then(m => m.QuickPlayPage),
 				canActivate: [AuthGuard]
+			},
+			{
+				path: 'game/:id',
+				loadComponent: () => import('./pages/game/game.page').then(m => m.GamePage),
+				canActivate: [AuthGuard]
+			},
+			{
+				path: 'game/:id/:slug',
+				loadComponent: () => import('./pages/game/game.page').then(m => m.GamePage),
+				canActivate: [AuthGuard]
 			}
 		]
 	},

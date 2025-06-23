@@ -148,6 +148,7 @@ export interface Database {
                     winner_id: string | null;
                     result: 'win' | 'loss' | 'draw' | 'timeout' | 'resign' | 'abort' | null;
                     meta: any;
+                    slug: string | null;
                     created_at: string;
                     updated_at: string;
                 };
@@ -160,6 +161,7 @@ export interface Database {
                     winner_id?: string | null;
                     result?: 'win' | 'loss' | 'draw' | 'timeout' | 'resign' | 'abort' | null;
                     meta?: any;
+                    slug?: string | null;
                     created_at?: string;
                     updated_at?: string;
                 };
@@ -172,6 +174,7 @@ export interface Database {
                     winner_id?: string | null;
                     result?: 'win' | 'loss' | 'draw' | 'timeout' | 'resign' | 'abort' | null;
                     meta?: any;
+                    slug?: string | null;
                     created_at?: string;
                     updated_at?: string;
                 };

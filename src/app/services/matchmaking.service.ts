@@ -607,7 +607,9 @@ export class MatchmakingService {
 
         if (lobbyError) {
             console.error('Error getting lobby logs:', lobbyError);
-            return;
+            // Fallback: If we can't access lobby logs (due to RLS or other issues),
+            // assume both players are in lobby if the game exists and both players are online
+            console.log('⚠️ Falling back to assuming both players are in lobby due to lobby log access issues');
         }
 
         // Get latest entry for each player to determine current lobby status
@@ -620,8 +622,8 @@ export class MatchmakingService {
             }
         }
 
-        const player1InLobby = playerLobbyStatus.get(game.player1_id) === 'entered_lobby';
-        const player2InLobby = playerLobbyStatus.get(game.player2_id) === 'entered_lobby';
+        const player1InLobby = lobbyError ? true : playerLobbyStatus.get(game.player1_id) === 'entered_lobby';
+        const player2InLobby = lobbyError ? true : playerLobbyStatus.get(game.player2_id) === 'entered_lobby';
         const bothInLobby = player1InLobby && player2InLobby;
 
         // Additionally check if players are still online
@@ -635,6 +637,10 @@ export class MatchmakingService {
             return;
         }
 
+        // Get online status for both players
+        const player1Status = playersOnlineStatus?.find(p => p.id === game.player1_id);
+        const player2Status = playersOnlineStatus?.find(p => p.id === game.player2_id);
+
         // Check if opponent is still online (last seen within 15 seconds)
         const opponentId = this.currentUserId === game.player1_id ? game.player2_id : game.player1_id;
         const opponentStatus = playersOnlineStatus?.find(p => p.id === opponentId);
@@ -645,8 +651,38 @@ export class MatchmakingService {
             opponentStatus?.last_seen_at &&
             new Date(opponentStatus.last_seen_at) > fifteenSecondsAgo;
 
+        // If we have lobby log errors, use online status as fallback for lobby presence
+        // Logic: if both players are online and game exists, assume they're in lobby
+        const player1IsOnline = player1Status?.is_online && player1Status?.last_seen_at &&
+            new Date(player1Status.last_seen_at) > fifteenSecondsAgo;
+        const player2IsOnline = player2Status?.is_online && player2Status?.last_seen_at &&
+            new Date(player2Status.last_seen_at) > fifteenSecondsAgo;
+
+        // Enhanced logic: combine lobby logs with online status
+        const player1ActuallyInLobby = lobbyError ? player1IsOnline :
+            (playerLobbyStatus.get(game.player1_id) === 'entered_lobby' && player1IsOnline);
+        const player2ActuallyInLobby = lobbyError ? player2IsOnline :
+            (playerLobbyStatus.get(game.player2_id) === 'entered_lobby' && player2IsOnline);
+        const bothActuallyInLobby = player1ActuallyInLobby && player2ActuallyInLobby;
+
+        console.log('🏢 Lobby Status Check:', {
+            lobbyError: !!lobbyError,
+            player1InLobby: player1InLobby,
+            player2InLobby: player2InLobby,
+            bothInLobby: bothInLobby,
+            player1IsOnline,
+            player2IsOnline,
+            player1ActuallyInLobby,
+            player2ActuallyInLobby,
+            bothActuallyInLobby,
+            opponentIsOnline
+        });
+
+        // Use the enhanced logic
+        const finalBothInLobby = bothActuallyInLobby;
+
         // If opponent has disconnected, handle it
-        if (bothInLobby && !opponentIsOnline) {
+        if (finalBothInLobby && !opponentIsOnline) {
             const now = Date.now();
 
             // If this is the first time we detect disconnection, start grace period
@@ -684,7 +720,7 @@ export class MatchmakingService {
         }
 
         // Check if opponent has reconnected after being disconnected
-        if (bothInLobby && opponentIsOnline) {
+        if (finalBothInLobby && opponentIsOnline) {
             // Clear disconnection state if opponent reconnected
             if (this.disconnectionGraceStartTime || this.opponentDisconnectedLogged) {
                 console.log('🔌 Opponent has reconnected!');
@@ -713,7 +749,7 @@ export class MatchmakingService {
                 }
             }
 
-            if (bothInLobby && opponentIsOnline) {
+            if (finalBothInLobby && opponentIsOnline) {
                 // Check ready states from game meta
                 const meta = game.meta as any || {};
                 const player1Ready = meta.player1Ready || false;

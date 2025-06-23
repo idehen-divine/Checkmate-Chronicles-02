@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { Observable, BehaviorSubject } from 'rxjs';
+import { Observable, BehaviorSubject, from, throwError } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
 import {
     ChessSquare,
     ChessPiece,
@@ -7,6 +8,9 @@ import {
     Player,
     GameMove
 } from '../types/game.types';
+import { SupabaseService } from './supabase.service';
+import { Database } from '../types/database.types';
+import { generateGameSlug, isValidUUID, generateGameUrl } from '../utils/game.util';
 
 @Injectable({
     providedIn: 'root'
@@ -15,7 +19,7 @@ export class GameService {
     private gameStateSubject = new BehaviorSubject<GameState | null>(null);
     public gameState$ = this.gameStateSubject.asObservable();
 
-    constructor() { }
+    constructor(private supabaseService: SupabaseService) { }
 
     // Initialize a new game
     createGame(whitePlayer: Player, blackPlayer: Player): GameState {
@@ -41,14 +45,108 @@ export class GameService {
 
     // Load existing game
     loadGame(gameId: string): Observable<GameState> {
-        // TODO: Implement actual game loading from Supabase
-        return new Observable(observer => {
-            // Mock game for now
-            const mockGame = this.createMockGame();
-            this.gameStateSubject.next(mockGame);
-            observer.next(mockGame);
-            observer.complete();
-        });
+        return from(this.supabaseService.db
+            .from('games')
+            .select(`
+                *,
+                player1:users!games_player1_id_fkey(id, username, avatar_url, elo),
+                player2:users!games_player2_id_fkey(id, username, avatar_url, elo)
+            `)
+            .eq('id', gameId)
+            .single()
+        ).pipe(
+            map(({ data, error }) => {
+                if (error) throw error;
+                return this.mapDatabaseGameToGameState(data);
+            }),
+            catchError(error => {
+                console.error('Error loading game:', error);
+                return throwError(() => error);
+            })
+        );
+    }
+
+    // Load existing game by slug
+    loadGameBySlug(slug: string): Observable<GameState> {
+        return from(this.supabaseService.db
+            .from('games')
+            .select(`
+                *,
+                player1:users!games_player1_id_fkey(id, username, avatar_url, elo),
+                player2:users!games_player2_id_fkey(id, username, avatar_url, elo)
+            `)
+            .eq('slug', slug)
+            .single()
+        ).pipe(
+            map(({ data, error }) => {
+                if (error) throw error;
+                return this.mapDatabaseGameToGameState(data);
+            }),
+            catchError(error => {
+                console.error('Error loading game by slug:', error);
+                return throwError(() => error);
+            })
+        );
+    }
+
+    // Load game by ID or slug
+    loadGameByIdOrSlug(identifier: string): Observable<GameState> {
+        // First try to load by UUID (if it looks like a UUID)
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
+
+        if (isUUID) {
+            return this.loadGame(identifier);
+        } else {
+            return this.loadGameBySlug(identifier);
+        }
+    }
+
+    // Map database game to GameState
+    private mapDatabaseGameToGameState(data: any): GameState {
+        const gameState: GameState = {
+            id: data.id,
+            whitePlayer: {
+                id: data.player1.id,
+                username: data.player1.username,
+                avatar: data.player1.avatar_url || '/assets/images/profile-avatar.png',
+                rating: data.player1.elo,
+                rank: this.getRankFromElo(data.player1.elo),
+                isOnline: true // TODO: Get actual online status
+            },
+            blackPlayer: {
+                id: data.player2.id,
+                username: data.player2.username,
+                avatar: data.player2.avatar_url || '/assets/images/profile-avatar.png',
+                rating: data.player2.elo,
+                rank: this.getRankFromElo(data.player2.elo),
+                isOnline: true // TODO: Get actual online status
+            },
+            currentTurn: 'white', // TODO: Get from game state
+            gameStatus: data.status as 'waiting' | 'active' | 'paused' | 'finished',
+            result: data.result as 'white_wins' | 'black_wins' | 'draw' | undefined,
+            timeControl: {
+                initialTime: data.meta?.timeControl?.initialTime || 600,
+                increment: data.meta?.timeControl?.increment || 5
+            },
+            whiteTimeLeft: data.meta?.whiteTimeLeft || 600,
+            blackTimeLeft: data.meta?.blackTimeLeft || 600,
+            moves: data.meta?.moves || [],
+            board: data.meta?.board || this.initializeBoard()
+        };
+
+        this.gameStateSubject.next(gameState);
+        return gameState;
+    }
+
+    // Helper to get rank from ELO
+    private getRankFromElo(elo: number): string {
+        // Simple rank calculation - you might want to use your ranking system
+        if (elo >= 2000) return 'Master';
+        if (elo >= 1800) return 'Expert';
+        if (elo >= 1600) return 'Advanced';
+        if (elo >= 1400) return 'Intermediate';
+        if (elo >= 1200) return 'Beginner';
+        return 'Novice';
     }
 
     // Make a move

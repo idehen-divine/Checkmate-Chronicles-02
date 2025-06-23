@@ -19,6 +19,7 @@ import { LiveGameMove, LiveGamePlayer } from '../../types/game.types';
 import { GameTimerService } from '../../services/game-timer.service';
 import { NotificationService } from '../../services/notification.service';
 import { ChessReplayService } from '../../services/chess-replay.service';
+import { GameService } from '../../services/game.service';
 import * as ChessBoardUtils from '../../utils/chess-board.util';
 import * as GameTimerUtils from '../../utils/game-timer.util';
 import { Subscription } from 'rxjs';
@@ -83,7 +84,8 @@ export class GamePage implements OnInit, OnDestroy {
 		private changeDetectorRef: ChangeDetectorRef,
 		private gameTimerService: GameTimerService,
 		private notificationService: NotificationService,
-		private chessReplayService: ChessReplayService
+		private chessReplayService: ChessReplayService,
+		private gameService: GameService
 	) {
 		this.currentPlayer = this.player1;
 		// Add icons for ion-icon to work
@@ -100,10 +102,22 @@ export class GamePage implements OnInit, OnDestroy {
 		this.initializeBoard();
 		this.startTimer();
 
-		// Get game ID from route if available
+		// Get game ID/slug from route parameters
 		this.route.params.subscribe(params => {
-			if (params['id']) {
-				this.gameId = `Game #${params['id']}`;
+			const gameId = params['id'];
+			const gameSlug = params['slug'];
+
+			if (gameId) {
+				// If we have both ID and slug, prefer the ID but validate slug
+				if (gameSlug) {
+					this.loadGameWithValidation(gameId, gameSlug);
+				} else {
+					// Just ID, could be UUID or slug
+					this.loadGameByIdOrSlug(gameId);
+				}
+
+				// Update gameId display
+				this.gameId = gameSlug ? `${gameSlug}` : `Game #${gameId.substring(0, 8)}`;
 			}
 		});
 
@@ -660,6 +674,85 @@ export class GamePage implements OnInit, OnDestroy {
 	get canReplayNext(): boolean {
 		return this.isReplayMode && this.replayPosition < this.replayMoves.length;
 	}
-	// This method is no longer needed as we use the notification service directly
-	// All toast calls have been replaced with this.notificationService.showToast() or specific message methods
+
+	private loadGameByIdOrSlug(identifier: string): void {
+		const gameLoadSubscription = this.gameService.loadGameByIdOrSlug(identifier).subscribe({
+			next: (gameState) => {
+				// Update the game UI with the loaded game state
+				this.updateGameFromState(gameState);
+			},
+			error: (error) => {
+				console.error('Failed to load game:', error);
+				this.notificationService.showError('Failed to load game. Please try again.');
+				this.router.navigate(['/dashboard']);
+			}
+		});
+		this.subscriptions.push(gameLoadSubscription);
+	}
+
+	private loadGameWithValidation(gameId: string, expectedSlug: string): void {
+		const gameLoadSubscription = this.gameService.loadGame(gameId).subscribe({
+			next: (gameState) => {
+				// TODO: Validate that the game's slug matches the expected slug
+				// For now, just load the game
+				this.updateGameFromState(gameState);
+			},
+			error: (error) => {
+				console.error('Failed to load game:', error);
+				this.notificationService.showError('Failed to load game. Please try again.');
+				this.router.navigate(['/dashboard']);
+			}
+		});
+		this.subscriptions.push(gameLoadSubscription);
+	}
+
+	private updateGameFromState(gameState: any): void {
+		// Update players
+		this.player1 = {
+			id: gameState.whitePlayer.id,
+			username: gameState.whitePlayer.username,
+			avatar: gameState.whitePlayer.avatar,
+			walletAddress: '0x' + gameState.whitePlayer.id.substring(0, 6) + '...' + gameState.whitePlayer.id.substring(-4),
+			timeRemaining: gameState.whiteTimeLeft,
+			rating: gameState.whitePlayer.rating,
+			rank: gameState.whitePlayer.rank,
+			isOnline: gameState.whitePlayer.isOnline
+		};
+
+		this.player2 = {
+			id: gameState.blackPlayer.id,
+			username: gameState.blackPlayer.username,
+			avatar: gameState.blackPlayer.avatar,
+			walletAddress: '0x' + gameState.blackPlayer.id.substring(0, 6) + '...' + gameState.blackPlayer.id.substring(-4),
+			timeRemaining: gameState.blackTimeLeft,
+			rating: gameState.blackPlayer.rating,
+			rank: gameState.blackPlayer.rank,
+			isOnline: gameState.blackPlayer.isOnline
+		};
+
+		// Update game status
+		this.gameStatus = gameState.gameStatus;
+		this.gameEnded = gameState.gameStatus === 'finished';
+
+		// Update current player
+		this.currentPlayer = gameState.currentTurn === 'white' ? this.player1 : this.player2;
+		this.isPlayerTurn = gameState.currentTurn === 'white'; // TODO: Check if current user is white
+
+		// Update board if available
+		if (gameState.board) {
+			this.board = gameState.board;
+		}
+
+		// Update game history
+		if (gameState.moves && gameState.moves.length > 0) {
+			this.gameHistory = gameState.moves.map((move: any, index: number) => ({
+				notation: move.notation,
+				timestamp: new Date(move.timestamp),
+				from: move.from,
+				to: move.to,
+				playerId: index % 2 === 0 ? this.player1.id : this.player2.id,
+				promotion: move.promotion
+			}));
+		}
+	}
 }

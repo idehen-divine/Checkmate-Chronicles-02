@@ -279,36 +279,47 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 	}
 
 	private async enterLobby(gameId: string) {
-		// Log that this player has entered the lobby
-		const { error } = await this.supabaseService.db
-			.from('game_lobby_logs')
-			.insert({
-				game_id: gameId,
-				player_id: this.supabaseService.user?.id,
-				event: 'entered_lobby'
-			});
+		// Log that this player has entered the lobby using the secure function
+		// This is for analytics only, so don't fail if it doesn't work
+		try {
+			const { data, error } = await this.supabaseService.db
+				.rpc('log_lobby_event', {
+					p_game_id: gameId,
+					p_player_id: this.supabaseService.user?.id,
+					p_event: 'entered_lobby'
+				});
 
-		if (error) {
-			console.error('Error logging lobby entry:', error);
-		} else {
-			console.log('✅ Entered lobby successfully');
+			if (error) {
+				console.warn('Could not log lobby entry (non-critical):', error);
+			} else {
+				console.log('✅ Entered lobby successfully');
+			}
+		} catch (error) {
+			console.warn('Could not call log_lobby_event (non-critical):', error);
 		}
+
+		// Force lobby status update to ensure UI reflects current state
+		// regardless of whether logging succeeded
+		console.log('📍 Player has entered lobby for game:', gameId);
 	}
 
 	private async leaveLobby(gameId: string) {
-		// Log that this player has left the lobby
-		const { error } = await this.supabaseService.db
-			.from('game_lobby_logs')
-			.insert({
-				game_id: gameId,
-				player_id: this.supabaseService.user?.id,
-				event: 'left_lobby'
-			});
+		// Log that this player has left the lobby using the secure function
+		try {
+			const { data, error } = await this.supabaseService.db
+				.rpc('log_lobby_event', {
+					p_game_id: gameId,
+					p_player_id: this.supabaseService.user?.id,
+					p_event: 'left_lobby'
+				});
 
-		if (error) {
-			console.error('Error logging lobby exit:', error);
-		} else {
-			console.log('✅ Left lobby successfully');
+			if (error) {
+				console.error('Error logging lobby exit:', error);
+			} else {
+				console.log('✅ Left lobby successfully');
+			}
+		} catch (error) {
+			console.error('Error calling log_lobby_event:', error);
 		}
 	}
 
