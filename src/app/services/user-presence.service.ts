@@ -3,7 +3,7 @@ import { SupabaseService } from './supabase.service';
 import { AuthService } from './auth.service';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter, takeUntil } from 'rxjs/operators';
-import { Subject, interval } from 'rxjs';
+import { Subject, interval, BehaviorSubject } from 'rxjs';
 
 @Injectable({
     providedIn: 'root'
@@ -15,10 +15,17 @@ export class UserPresenceService implements OnDestroy {
     private isActive: boolean = true;
     private lastActivityTime: number = Date.now();
 
+    // Connection status tracking
+    private connectionStatusSubject = new BehaviorSubject<boolean>(true);
+    public connectionStatus$ = this.connectionStatusSubject.asObservable();
+    private consecutiveFailures = 0;
+    private isCurrentlyOffline = false;
+
     // Ping configuration
     private readonly PING_INTERVAL = 10000; // 10 seconds
     private readonly IDLE_THRESHOLD = 30000; // 30 seconds
     private readonly OFFLINE_THRESHOLD = 60000; // 1 minute
+    private readonly MAX_FAILURES_BEFORE_OFFLINE = 2; // Consider offline after 2 consecutive ping failures
 
     constructor(
         private supabaseService: SupabaseService,
@@ -136,13 +143,47 @@ export class UserPresenceService implements OnDestroy {
 
             if (error) {
                 console.warn('Failed to send ping:', error);
+                this.handlePingFailure();
                 // Check if this is a user profile not found error
                 await this.authService.handleUserProfileNotFound(error, 'ping_user_activity');
+            } else {
+                // Ping successful - user is back online
+                this.handlePingSuccess();
             }
         } catch (error) {
             console.warn('Ping failed:', error);
+            this.handlePingFailure();
             // Check if this is a user profile not found error
             await this.authService.handleUserProfileNotFound(error, 'ping_user_activity');
+        }
+    }
+
+    private handlePingSuccess(): void {
+        // Reset failure count
+        this.consecutiveFailures = 0;
+
+        // If user was offline and is now back online
+        if (this.isCurrentlyOffline) {
+            console.log('🌐 Connection restored! Reloading page...');
+            this.isCurrentlyOffline = false;
+            this.connectionStatusSubject.next(true);
+
+            // Trigger full page reload after a short delay to ensure modal is hidden
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        }
+    }
+
+    private handlePingFailure(): void {
+        this.consecutiveFailures++;
+        console.warn(`🔌 Ping failure ${this.consecutiveFailures}/${this.MAX_FAILURES_BEFORE_OFFLINE}`);
+
+        // If we've reached the threshold and aren't already marked as offline
+        if (this.consecutiveFailures >= this.MAX_FAILURES_BEFORE_OFFLINE && !this.isCurrentlyOffline) {
+            console.warn('🚫 User appears to be offline - showing reconnection modal');
+            this.isCurrentlyOffline = true;
+            this.connectionStatusSubject.next(false);
         }
     }
 
@@ -151,10 +192,24 @@ export class UserPresenceService implements OnDestroy {
         this.sendPing('page_hidden');
     }
 
-    private handlePageVisible(): void {
+    private async handlePageVisible(): Promise<void> {
         this.isActive = true;
         this.updateActivity('page_visible');
+
+        // Reset connection status when page becomes visible
+        // This ensures we start fresh when user returns to the page
+        this.consecutiveFailures = 0;
+
         this.sendPing('page_visible');
+
+        // Validate matchmaking state when user comes back online
+        // This helps handle cases where user was removed from queue while offline
+        try {
+            const { MatchmakingService } = await import('./matchmaking.service');
+            await MatchmakingService.validateStateFromExternal();
+        } catch (error) {
+            console.warn('Could not validate matchmaking state:', error);
+        }
     }
 
     private handlePageUnload(): void {
@@ -218,6 +273,17 @@ export class UserPresenceService implements OnDestroy {
         } catch (error) {
             return 0;
         }
+    }
+
+    // Connection status methods
+    public isOnline(): boolean {
+        return !this.isCurrentlyOffline;
+    }
+
+    public forceConnectionCheck(): void {
+        // Reset failure count and try a ping immediately
+        this.consecutiveFailures = 0;
+        this.sendPing('manual_check');
     }
 
     // Lifecycle methods
