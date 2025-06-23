@@ -133,6 +133,52 @@ export class AuthService {
 
 		if (profileError) {
 			console.error('Error creating user profile:', profileError);
+
+			// Handle duplicate key error on user_settings (common during partial failures)
+			if (profileError.code === '23505' && profileError.message?.includes('user_settings_user_id_key')) {
+				console.log('Detected orphaned user_settings record, attempting cleanup and retry...');
+
+				try {
+					// Try to clean up orphaned user_settings record using database function
+					const { data: cleanupResult, error: cleanupError } = await this.supabaseService
+						.cleanupOrphanedUserSettings(user.id);
+
+					if (cleanupError) {
+						console.error('Cleanup function error:', cleanupError);
+						throw cleanupError;
+					}
+
+					console.log('Orphaned user_settings cleanup result:', cleanupResult);
+					console.log('Retrying user creation...');
+
+					// Retry user creation after cleanup
+					const { data: retryData, error: retryError } = await this.supabaseService.createUserProfile({
+						id: user.id,
+						username: username,
+						elo: 0,
+						wins: 0,
+						losses: 0,
+						draws: 0,
+						avatar_url: user.user_metadata?.['avatar_url'] || null,
+						is_online: true,
+						last_seen_method: 'login',
+						status: 'active'
+					});
+
+					if (retryError) {
+						console.error('Retry failed after cleanup:', retryError);
+						return { data: null, error: retryError };
+					}
+
+					console.log('User profile created successfully after cleanup:', retryData);
+					return { data: retryData, error: null };
+
+				} catch (cleanupError) {
+					console.error('Cleanup failed:', cleanupError);
+					return { data: null, error: profileError };
+				}
+			}
+
 			return { data: null, error: profileError };
 		}
 
@@ -339,6 +385,17 @@ export class AuthService {
 
 					if (createResult.error) {
 						console.error('Failed to create user profile:', createResult.error);
+
+						// Log specific details for duplicate key errors
+						if (createResult.error.code === '23505') {
+							console.error('Duplicate key error during profile creation - likely orphaned user_settings');
+							console.error('Error details:', {
+								code: createResult.error.code,
+								message: createResult.error.message,
+								details: createResult.error.details
+							});
+						}
+
 						console.error('Profile creation failed, but not logging out during initial setup');
 					} else {
 						console.log('User profile created successfully!', createResult.data);

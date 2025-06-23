@@ -40,6 +40,8 @@ export interface MatchmakingState {
     providedIn: 'root'
 })
 export class MatchmakingService {
+    private static instance: MatchmakingService;
+
     private matchmakingStateSubject = new BehaviorSubject<MatchmakingState>({ status: 'waiting' });
     public matchmakingState$ = this.matchmakingStateSubject.asObservable();
 
@@ -60,7 +62,16 @@ export class MatchmakingService {
     constructor(
         private supabaseService: SupabaseService,
         private authService: AuthService
-    ) { }
+    ) {
+        MatchmakingService.instance = this;
+    }
+
+    // Static method for external validation calls
+    static async validateStateFromExternal(): Promise<void> {
+        if (MatchmakingService.instance) {
+            await MatchmakingService.instance.validateCurrentState();
+        }
+    }
 
     // Check if user is in queue
     async isUserInQueue(userId?: string): Promise<boolean> {
@@ -86,6 +97,99 @@ export class MatchmakingService {
         } else {
             console.log(`📋 Current matchmaking queue (${queueEntries?.length || 0} users):`, queueEntries);
         }
+    }
+
+    // Check and validate current queue/lobby state (useful after reconnection)
+    async validateCurrentState(): Promise<void> {
+        const user = this.supabaseService.user;
+        if (!user) return;
+
+        console.log('🔍 Validating current matchmaking state after reconnection...');
+
+        // Check if user is actually in queue
+        const { data: queueEntry, error: queueError } = await this.supabaseService.db
+            .from('matchmaking_queue')
+            .select('*')
+            .eq('player_id', user.id)
+            .single();
+
+        if (queueError || !queueEntry) {
+            // User is not in queue but might be stuck in lobby UI
+            console.log('⚠️ User not in queue but may be stuck in lobby state - resetting...');
+
+            // Reset all state
+            this.currentGameId = undefined;
+            this.currentGameType = undefined;
+            this.currentUserId = undefined;
+            this.disconnectionGraceStartTime = undefined;
+            this.opponentDisconnectedLogged = false;
+
+            // Stop all polling and timers
+            this.stopPolling();
+            this.stopLobbyPolling();
+            this.stopCountdown();
+            this.stopDisconnectionGracePeriod();
+
+            // Reset UI state
+            this.matchmakingStateSubject.next({ status: 'waiting' });
+            this.queueStatusSubject.next(false);
+
+            console.log('✅ State validated and reset - user ready for new matchmaking');
+            return;
+        }
+
+        // User is in queue, validate their state
+        this.currentUserId = user.id;
+        this.currentGameType = queueEntry.game_type as GameMode;
+        this.queueStatusSubject.next(true);
+
+        if (queueEntry.status === 'matched') {
+            // User is matched, check if game exists
+            const { data: games, error: gameError } = await this.supabaseService.db
+                .from('games')
+                .select('*')
+                .or(`player1_id.eq.${user.id},player2_id.eq.${user.id}`)
+                .eq('status', 'waiting')
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (!gameError && games && games.length > 0) {
+                // Game exists, restore lobby state
+                this.currentGameId = games[0].id;
+                console.log('✅ Restored lobby state for game:', this.currentGameId);
+
+                // Start lobby polling to check current status
+                this.startLobbyPolling();
+            } else {
+                // No game found but user marked as matched - inconsistent state
+                console.log('⚠️ User marked as matched but no game found - returning to queue...');
+
+                // Reset to waiting state and start polling
+                await this.supabaseService.db
+                    .from('matchmaking_queue')
+                    .update({
+                        status: 'waiting',
+                        matching_with_id: null,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('player_id', user.id);
+
+                this.matchmakingStateSubject.next({ status: 'waiting' });
+                this.startPolling();
+            }
+        } else if (queueEntry.status === 'waiting') {
+            // User is waiting in queue
+            console.log('✅ User confirmed in waiting state');
+            this.matchmakingStateSubject.next({ status: 'waiting' });
+            this.startPolling();
+        } else if (queueEntry.status === 'matching') {
+            // User is in matching state
+            console.log('✅ User in matching state, waiting for match completion...');
+            this.matchmakingStateSubject.next({ status: 'matching' });
+            this.startPolling();
+        }
+
+        console.log('✅ State validation completed');
     }
 
     // Join matchmaking queue
@@ -213,9 +317,13 @@ export class MatchmakingService {
 
     // Check for matches and handle the matchmaking flow
     private async checkForMatches(): Promise<void> {
-        if (!this.currentUserId || !this.currentGameType) return;
+        if (!this.currentUserId || !this.currentGameType) {
+            if (!this.currentUserId) console.warn('⚠️ No current user ID - cannot check for matches');
+            if (!this.currentGameType) console.warn('⚠️ No current game type - cannot check for matches');
+            return;
+        }
 
-        console.log(`🔍 Checking for matches for user ${this.currentUserId}...`);
+        console.log(`🔍 Checking for matches for user ${this.currentUserId} (${this.currentGameType})...`);
 
         // First, check if we're already matched
         const { data: currentEntry, error: currentError } = await this.supabaseService.db
@@ -225,8 +333,26 @@ export class MatchmakingService {
             .single();
 
         if (currentError || !currentEntry) {
-            console.log('User no longer in queue, stopping polling');
+            console.log('User no longer in queue, resetting state and stopping polling');
+
+            // Reset ALL state completely when user is no longer in queue
+            this.currentGameId = undefined;
+            this.currentGameType = undefined;
+            this.disconnectionGraceStartTime = undefined;
+            this.opponentDisconnectedLogged = false;
+            this.isCountdownActive = false;
+
+            // Stop all polling and timers
             this.stopPolling();
+            this.stopLobbyPolling();
+            this.stopCountdown();
+            this.stopDisconnectionGracePeriod();
+
+            // Reset UI state to initial waiting state
+            this.matchmakingStateSubject.next({ status: 'waiting' });
+            this.queueStatusSubject.next(false);
+
+            console.log('🔄 State reset - user returned to initial matchmaking state');
             return;
         }
 
@@ -266,10 +392,23 @@ export class MatchmakingService {
         }
 
         // Get user profiles for ELO compatibility check
-        const userProfile = await this.supabaseService.getUserProfile(this.currentUserId);
-        if (!userProfile) {
-            console.error('Could not get user profile');
-            return;
+        try {
+            const userProfile = await this.supabaseService.getUserProfile(this.currentUserId);
+            if (!userProfile) {
+                console.error('Could not get user profile - profile may be missing');
+                // Don't fail completely, just log the error and continue with basic matching
+                console.warn('Continuing with basic matching without ELO check');
+            }
+        } catch (error: any) {
+            console.error('Error getting user profile:', error);
+            // If it's a 406 error (user profile missing), handle gracefully
+            if (error?.code === 'PGRST116' || error?.message?.includes('406')) {
+                console.warn('User profile missing (406 error) - this may indicate database sync issues');
+                console.warn('Continuing with basic matching...');
+            } else {
+                console.error('Unexpected error getting user profile:', error);
+                return;
+            }
         }
 
         // Find compatible opponent (ELO within ±200)
@@ -295,8 +434,9 @@ export class MatchmakingService {
         try {
             console.log(`🔒 Locking players for matching: ${player1Id} vs ${player2Id}`);
 
-            // Determine who should create the game (player with smaller ID to avoid race conditions)
-            const shouldCreateGame = player1Id < player2Id ? player1Id === this.currentUserId : player2Id === this.currentUserId;
+            // Determine who should create the game (random selection to avoid bias)
+            const randomHost = Math.random() < 0.5 ? player1Id : player2Id;
+            const shouldCreateGame = randomHost === this.currentUserId;
 
             if (!shouldCreateGame) {
                 console.log('⏳ Waiting for opponent to create the game');
@@ -437,7 +577,14 @@ export class MatchmakingService {
 
     // Check lobby status and ready states
     private async checkLobbyStatus(): Promise<void> {
-        if (!this.currentGameId || !this.currentUserId) return;
+        if (!this.currentGameId || !this.currentUserId) {
+            // If we don't have game ID but lobby polling is still running, stop it
+            if (this.lobbyPollingSubscription) {
+                console.warn('⚠️ Lobby polling running without game ID - stopping polling');
+                this.stopLobbyPolling();
+            }
+            return;
+        }
 
         // Get game data
         const { data: game, error } = await this.supabaseService.db
@@ -488,15 +635,15 @@ export class MatchmakingService {
             return;
         }
 
-        // Check if opponent is still online (last seen within 30 seconds)
+        // Check if opponent is still online (last seen within 15 seconds)
         const opponentId = this.currentUserId === game.player1_id ? game.player2_id : game.player1_id;
         const opponentStatus = playersOnlineStatus?.find(p => p.id === opponentId);
         const now = new Date();
-        const thirtySecondsAgo = new Date(now.getTime() - 30000);
+        const fifteenSecondsAgo = new Date(now.getTime() - 15000);
 
         const opponentIsOnline = opponentStatus?.is_online &&
             opponentStatus?.last_seen_at &&
-            new Date(opponentStatus.last_seen_at) > thirtySecondsAgo;
+            new Date(opponentStatus.last_seen_at) > fifteenSecondsAgo;
 
         // If opponent has disconnected, handle it
         if (bothInLobby && !opponentIsOnline) {
@@ -504,7 +651,7 @@ export class MatchmakingService {
 
             // If this is the first time we detect disconnection, start grace period
             if (!this.opponentDisconnectedLogged && !this.disconnectionGraceStartTime) {
-                console.warn('🔌 Opponent appears to have disconnected - starting 10 second grace period');
+                console.warn('🔌 Opponent appears to have disconnected - starting 15 second grace period');
                 this.disconnectionGraceStartTime = now;
 
                 // Update lobby status to show opponent disconnected
@@ -521,14 +668,14 @@ export class MatchmakingService {
                     console.log('⏰ Countdown cancelled due to opponent disconnection');
                 }
 
-                // Start 10-second grace period timer
+                // Start 15-second grace period timer
                 this.startDisconnectionGracePeriod();
                 return;
             }
 
             // If we're already in grace period, just continue waiting
-            if (this.disconnectionGraceStartTime && (now - this.disconnectionGraceStartTime) < 10000) {
-                const remainingSeconds = Math.ceil((10000 - (now - this.disconnectionGraceStartTime)) / 1000);
+            if (this.disconnectionGraceStartTime && (now - this.disconnectionGraceStartTime) < 15000) {
+                const remainingSeconds = Math.ceil((15000 - (now - this.disconnectionGraceStartTime)) / 1000);
                 console.log(`⏳ Grace period: ${remainingSeconds} seconds remaining...`);
                 return;
             }
@@ -550,20 +697,19 @@ export class MatchmakingService {
                 this.opponentDisconnectedLogged = false;
                 this.stopDisconnectionGracePeriod();
 
-                // Log reconnection event
+                // Try to log reconnection event - but don't fail if RLS blocks it
                 if (wasDisconnected) {
-                    await this.supabaseService.db
-                        .from('game_lobby_logs')
-                        .insert({
-                            game_id: this.currentGameId,
-                            player_id: opponentId,
-                            event: 'reconnected'
-                        })
-                        .then(result => {
-                            if (result.error) {
-                                console.warn('Could not log reconnection event:', result.error);
-                            }
-                        });
+                    try {
+                        await this.supabaseService.db
+                            .rpc('log_lobby_event', {
+                                p_game_id: this.currentGameId,
+                                p_player_id: opponentId,
+                                p_event: 'reconnected'
+                            });
+                        console.log('✅ Logged reconnection event');
+                    } catch (error) {
+                        console.warn('Could not log reconnection event:', error);
+                    }
                 }
             }
 
@@ -885,17 +1031,17 @@ export class MatchmakingService {
         this.stopDisconnectionGracePeriod();
     }
 
-    // Start 10-second disconnection grace period
+    // Start 15-second disconnection grace period
     private startDisconnectionGracePeriod(): void {
         this.stopDisconnectionGracePeriod();
 
-        console.log('⏳ Starting 10-second grace period for opponent reconnection...');
+        console.log('⏳ Starting 15-second grace period for opponent reconnection...');
 
         this.disconnectionGraceSubscription = interval(1000).subscribe(() => {
             if (!this.disconnectionGraceStartTime) return;
 
             const elapsed = Date.now() - this.disconnectionGraceStartTime;
-            const remaining = Math.max(0, 10000 - elapsed);
+            const remaining = Math.max(0, 15000 - elapsed);
 
             if (remaining > 0) {
                 const remainingSeconds = Math.ceil(remaining / 1000);
@@ -927,9 +1073,12 @@ export class MatchmakingService {
     private async handleOpponentDisconnectionTimeout(): Promise<void> {
         this.stopDisconnectionGracePeriod();
 
-        // Log the connection lost event now (after grace period)
-        if (!this.opponentDisconnectedLogged && this.currentGameId) {
-            // Get game data to find opponent ID
+        // CRITICAL: Stop lobby polling before resetting state
+        this.stopLobbyPolling();
+        this.stopCountdown();
+
+        // Get game data to find opponent ID and remove them from queue
+        if (this.currentGameId) {
             const { data: game } = await this.supabaseService.db
                 .from('games')
                 .select('player1_id, player2_id')
@@ -939,27 +1088,42 @@ export class MatchmakingService {
             if (game) {
                 const opponentId = this.currentUserId === game.player1_id ? game.player2_id : game.player1_id;
 
+                // Remove opponent from matchmaking queue since they're disconnected
+                console.log('🚫 Removing disconnected opponent from queue...');
+                await this.supabaseService.leaveMatchmakingQueue(opponentId);
+
+                // Put current user back in waiting state (don't remove from queue completely)
+                console.log('🔄 Resetting current user to waiting state...');
                 await this.supabaseService.db
-                    .from('game_lobby_logs')
-                    .insert({
-                        game_id: this.currentGameId,
-                        player_id: opponentId,
-                        event: 'connection_lost'
+                    .from('matchmaking_queue')
+                    .update({
+                        status: 'waiting',
+                        matching_with_id: null,
+                        updated_at: new Date().toISOString()
                     })
-                    .then(result => {
-                        if (result.error) {
-                            console.warn('Could not log disconnection event:', result.error);
-                        } else {
-                            this.opponentDisconnectedLogged = true;
-                        }
-                    });
+                    .eq('player_id', this.currentUserId!);
+
+                // Try to log the disconnection event - but don't fail if RLS blocks it
+                try {
+                    await this.supabaseService.db
+                        .rpc('log_lobby_event', {
+                            p_game_id: this.currentGameId,
+                            p_player_id: opponentId,
+                            p_event: 'connection_lost'
+                        });
+                    console.log('✅ Logged disconnection event');
+                } catch (error) {
+                    console.warn('Could not log disconnection event:', error);
+                }
             }
         }
 
-        // Reset state and return to queue
+        // Reset state but preserve game type for continued matchmaking
         this.disconnectionGraceStartTime = undefined;
         this.opponentDisconnectedLogged = false;
         this.currentGameId = undefined;
+        // Keep currentGameType so matchmaking can continue!
+        this.isCountdownActive = false;
 
         // Return to matchmaking queue
         this.matchmakingStateSubject.next({ status: 'waiting' });
@@ -969,5 +1133,6 @@ export class MatchmakingService {
         this.startPolling();
 
         console.log('🔄 Returned to matchmaking queue due to opponent disconnection');
+        console.log(`🔍 Resuming matchmaking for game type: ${this.currentGameType}`);
     }
 } 

@@ -597,4 +597,11 @@ export class SupabaseService {
 			return { data: null, error };
 		}
 	}
+
+	// User management utility functions
+	async cleanupOrphanedUserSettings(userId: string) {
+		const { data, error } = await this.supabase
+			.rpc('cleanup_orphaned_user_settings', { p_user_id: userId });
+		return { data, error };
+	}
 }
