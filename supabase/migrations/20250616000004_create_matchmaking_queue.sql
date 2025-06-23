@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS matchmaking_queue (
             'cancelled'
         )
     ) NOT NULL,
+    matching_with_id uuid REFERENCES users (id) ON DELETE SET NULL, -- ID of the player being matched with
     created_at timestamptz DEFAULT now() NOT NULL,
     updated_at timestamptz DEFAULT now() NOT NULL,
     CONSTRAINT unique_player_queue UNIQUE (player_id) -- One queue entry per player
@@ -29,6 +30,8 @@ CREATE INDEX IF NOT EXISTS idx_matchmaking_queue_game_type ON matchmaking_queue 
 CREATE INDEX IF NOT EXISTS idx_matchmaking_queue_status ON matchmaking_queue (status);
 
 CREATE INDEX IF NOT EXISTS idx_matchmaking_queue_created_at ON matchmaking_queue (created_at);
+
+CREATE INDEX IF NOT EXISTS idx_matchmaking_queue_matching_with_id ON matchmaking_queue (matching_with_id);
 
 -- Enable Row Level Security
 ALTER TABLE matchmaking_queue ENABLE ROW LEVEL SECURITY;
@@ -91,6 +94,17 @@ BEGIN
         WHERE last_seen_at < NOW() - INTERVAL '5 minutes'
         AND is_online = false
     );
+    
+    -- Clean up orphaned matching_with_id references
+    UPDATE matchmaking_queue 
+    SET matching_with_id = NULL, 
+        status = 'waiting',
+        updated_at = NOW()
+    WHERE matching_with_id IS NOT NULL 
+    AND matching_with_id NOT IN (
+        SELECT player_id FROM matchmaking_queue 
+        WHERE status IN ('matching', 'matched')
+    );
 END;
 $$ LANGUAGE plpgsql;
 
@@ -147,3 +161,94 @@ BEGIN
     FROM matchmaking_queue;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Function to atomically match two players
+CREATE OR REPLACE FUNCTION match_players(
+    p_player1_id uuid,
+    p_player2_id uuid
+)
+RETURNS TABLE (
+    player_id uuid,
+    status text,
+    matching_with_id uuid,
+    updated boolean
+) AS $$
+DECLARE
+    player1_count integer := 0;
+    player2_count integer := 0;
+BEGIN
+    -- Update player 1 status from 'waiting' to 'matching' and set matching_with_id
+    UPDATE matchmaking_queue 
+    SET status = 'matching', 
+        matching_with_id = p_player2_id,
+        updated_at = now()
+    WHERE matchmaking_queue.player_id = p_player1_id AND matchmaking_queue.status = 'waiting';
+    
+    GET DIAGNOSTICS player1_count = ROW_COUNT;
+    
+    -- Update player 2 status from 'waiting' to 'matching' and set matching_with_id
+    UPDATE matchmaking_queue 
+    SET status = 'matching', 
+        matching_with_id = p_player1_id,
+        updated_at = now()
+    WHERE matchmaking_queue.player_id = p_player2_id AND matchmaking_queue.status = 'waiting';
+    
+    GET DIAGNOSTICS player2_count = ROW_COUNT;
+    
+    -- Only return results if both players were successfully updated
+    IF player1_count > 0 AND player2_count > 0 THEN
+        -- Return both players' updated status
+        RETURN QUERY
+        SELECT mq.player_id, mq.status::text, mq.matching_with_id, true as updated
+        FROM matchmaking_queue mq
+        WHERE mq.player_id = ANY(ARRAY[p_player1_id, p_player2_id]);
+    ELSE
+        -- Rollback any partial updates by setting status back to 'waiting' and clearing matching_with_id
+        UPDATE matchmaking_queue 
+        SET status = 'waiting', 
+            matching_with_id = NULL,
+            updated_at = now()
+        WHERE matchmaking_queue.player_id = ANY(ARRAY[p_player1_id, p_player2_id]) 
+        AND matchmaking_queue.status = 'matching';
+        
+        -- Return empty result to indicate failure
+        RETURN;
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to update both players to 'matched' status
+CREATE OR REPLACE FUNCTION update_players_to_matched(
+    p_player1_id uuid,
+    p_player2_id uuid
+)
+RETURNS TABLE (
+    player_id uuid,
+    status text,
+    updated boolean
+) AS $$
+DECLARE
+    player1_count integer := 0;
+    player2_count integer := 0;
+BEGIN
+    -- Update player 1 status from 'matching' to 'matched'
+    UPDATE matchmaking_queue 
+    SET status = 'matched', updated_at = now()
+    WHERE matchmaking_queue.player_id = p_player1_id AND matchmaking_queue.status = 'matching';
+    
+    GET DIAGNOSTICS player1_count = ROW_COUNT;
+    
+    -- Update player 2 status from 'matching' to 'matched'
+    UPDATE matchmaking_queue 
+    SET status = 'matched', updated_at = now()
+    WHERE matchmaking_queue.player_id = p_player2_id AND matchmaking_queue.status = 'matching';
+    
+    GET DIAGNOSTICS player2_count = ROW_COUNT;
+    
+    -- Return results for both players (even if one failed)
+    RETURN QUERY
+    SELECT mq.player_id, mq.status::text, (player1_count > 0 AND player2_count > 0) as updated
+    FROM matchmaking_queue mq
+    WHERE mq.player_id = ANY(ARRAY[p_player1_id, p_player2_id]);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
