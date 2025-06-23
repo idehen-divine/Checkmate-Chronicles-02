@@ -283,7 +283,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION set_user_offline_after_timeout()
 RETURNS void AS $$
 BEGIN
-    -- Set users offline if they haven't been seen in the last 30 seconds
+    -- Set users offline if they haven't been seen in the last 15 seconds
     -- This should be called by a cron job or scheduled function
     UPDATE users 
     SET 
@@ -292,7 +292,7 @@ BEGIN
         updated_at = now()
     WHERE 
         is_online = true 
-        AND last_seen_at < (now() - interval '30 seconds');
+        AND last_seen_at < (now() - interval '15 seconds');
         
     -- Remove offline users from matchmaking queue
     DELETE FROM matchmaking_queue 
@@ -344,3 +344,31 @@ BEGIN
     RETURN user_status;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Function to clean up orphaned user_settings records
+-- This can happen during failed user creation attempts
+CREATE OR REPLACE FUNCTION cleanup_orphaned_user_settings(p_user_id uuid)
+RETURNS boolean AS $$
+DECLARE
+    orphaned_count integer;
+BEGIN
+    -- Count orphaned user_settings records (settings without corresponding user)
+    SELECT COUNT(*) INTO orphaned_count
+    FROM user_settings us
+    WHERE us.user_id = p_user_id
+    AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = us.user_id);
+    
+    -- Delete orphaned records if any exist
+    IF orphaned_count > 0 THEN
+        DELETE FROM user_settings 
+        WHERE user_id = p_user_id
+        AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = user_settings.user_id);
+        
+        -- Log the cleanup
+        RAISE NOTICE 'Cleaned up % orphaned user_settings records for user %', orphaned_count, p_user_id;
+        RETURN true;
+    END IF;
+    
+    RETURN false;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
