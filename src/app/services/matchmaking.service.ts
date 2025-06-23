@@ -24,7 +24,7 @@ export type TimeControl = 'bullet' | 'blitz' | 'rapid' | 'classical';
 
 export type QueueStatus = 'waiting' | 'matching' | 'matched' | 'cancelled';
 
-export type LobbyStatus = 'waiting_for_opponent' | 'both_in_lobby' | 'ready' | 'countdown' | 'starting';
+export type LobbyStatus = 'waiting_for_opponent' | 'both_in_lobby' | 'ready' | 'countdown' | 'starting' | 'opponent_disconnected';
 
 export interface MatchmakingState {
     status: QueueStatus;
@@ -33,6 +33,7 @@ export interface MatchmakingState {
     opponentReady?: boolean;
     currentUserReady?: boolean;
     countdown?: number;
+    opponentDisconnected?: boolean;
 }
 
 @Injectable({
@@ -48,10 +49,13 @@ export class MatchmakingService {
     private pollingSubscription?: Subscription;
     private lobbyPollingSubscription?: Subscription;
     private countdownSubscription?: Subscription;
+    private disconnectionGraceSubscription?: Subscription;
     private currentGameType?: GameMode;
     private currentUserId?: string;
     private currentGameId?: string;
     private isCountdownActive = false;
+    private opponentDisconnectedLogged = false;
+    private disconnectionGraceStartTime?: number;
 
     constructor(
         private supabaseService: SupabaseService,
@@ -450,56 +454,158 @@ export class MatchmakingService {
         // Check if both players are in lobby (by checking lobby logs)
         const { data: lobbyLogs, error: lobbyError } = await this.supabaseService.db
             .from('game_lobby_logs')
-            .select('player_id, event')
+            .select('player_id, event, created_at')
             .eq('game_id', this.currentGameId)
-            .eq('event', 'entered_lobby');
+            .order('created_at', { ascending: false });
 
         if (lobbyError) {
             console.error('Error getting lobby logs:', lobbyError);
             return;
         }
 
-        const playersInLobby = lobbyLogs?.map(log => log.player_id) || [];
-        const bothInLobby = playersInLobby.includes(game.player1_id) && playersInLobby.includes(game.player2_id);
-
-        if (bothInLobby) {
-            // Check ready states from game meta
-            const meta = game.meta as any || {};
-            const player1Ready = meta.player1Ready || false;
-            const player2Ready = meta.player2Ready || false;
-
-            const currentUserReady = this.currentUserId === game.player1_id ? player1Ready : player2Ready;
-            const opponentReady = this.currentUserId === game.player1_id ? player2Ready : player1Ready;
-
-            if (player1Ready && player2Ready) {
-                // Both ready, start countdown (only if not already active)
-                if (!this.isCountdownActive) {
-                    this.matchmakingStateSubject.next({
-                        status: 'matched',
-                        gameId: this.currentGameId,
-                        lobbyStatus: 'countdown',
-                        currentUserReady: true,
-                        opponentReady: true
-                    });
-                    this.startCountdown();
+        // Get latest entry for each player to determine current lobby status
+        const playerLobbyStatus = new Map<string, string>();
+        if (lobbyLogs) {
+            for (const log of lobbyLogs) {
+                if (!playerLobbyStatus.has(log.player_id)) {
+                    playerLobbyStatus.set(log.player_id, log.event);
                 }
-            } else {
-                // At least one not ready
+            }
+        }
+
+        const player1InLobby = playerLobbyStatus.get(game.player1_id) === 'entered_lobby';
+        const player2InLobby = playerLobbyStatus.get(game.player2_id) === 'entered_lobby';
+        const bothInLobby = player1InLobby && player2InLobby;
+
+        // Additionally check if players are still online
+        const { data: playersOnlineStatus, error: onlineError } = await this.supabaseService.db
+            .from('users')
+            .select('id, is_online, last_seen_at')
+            .in('id', [game.player1_id, game.player2_id]);
+
+        if (onlineError) {
+            console.error('Error checking players online status:', onlineError);
+            return;
+        }
+
+        // Check if opponent is still online (last seen within 30 seconds)
+        const opponentId = this.currentUserId === game.player1_id ? game.player2_id : game.player1_id;
+        const opponentStatus = playersOnlineStatus?.find(p => p.id === opponentId);
+        const now = new Date();
+        const thirtySecondsAgo = new Date(now.getTime() - 30000);
+
+        const opponentIsOnline = opponentStatus?.is_online &&
+            opponentStatus?.last_seen_at &&
+            new Date(opponentStatus.last_seen_at) > thirtySecondsAgo;
+
+        // If opponent has disconnected, handle it
+        if (bothInLobby && !opponentIsOnline) {
+            const now = Date.now();
+
+            // If this is the first time we detect disconnection, start grace period
+            if (!this.opponentDisconnectedLogged && !this.disconnectionGraceStartTime) {
+                console.warn('🔌 Opponent appears to have disconnected - starting 10 second grace period');
+                this.disconnectionGraceStartTime = now;
+
+                // Update lobby status to show opponent disconnected
                 this.matchmakingStateSubject.next({
                     status: 'matched',
                     gameId: this.currentGameId,
-                    lobbyStatus: 'both_in_lobby',
-                    currentUserReady,
-                    opponentReady
+                    lobbyStatus: 'opponent_disconnected',
+                    opponentDisconnected: true
+                });
+
+                // Cancel any active countdown
+                if (this.isCountdownActive) {
+                    this.stopCountdown();
+                    console.log('⏰ Countdown cancelled due to opponent disconnection');
+                }
+
+                // Start 10-second grace period timer
+                this.startDisconnectionGracePeriod();
+                return;
+            }
+
+            // If we're already in grace period, just continue waiting
+            if (this.disconnectionGraceStartTime && (now - this.disconnectionGraceStartTime) < 10000) {
+                const remainingSeconds = Math.ceil((10000 - (now - this.disconnectionGraceStartTime)) / 1000);
+                console.log(`⏳ Grace period: ${remainingSeconds} seconds remaining...`);
+                return;
+            }
+
+            return;
+        }
+
+        // Check if opponent has reconnected after being disconnected
+        if (bothInLobby && opponentIsOnline) {
+            // Clear disconnection state if opponent reconnected
+            if (this.disconnectionGraceStartTime || this.opponentDisconnectedLogged) {
+                console.log('🔌 Opponent has reconnected!');
+
+                // Only log reconnection if we had started tracking disconnection
+                const wasDisconnected = this.disconnectionGraceStartTime || this.opponentDisconnectedLogged;
+
+                // Reset disconnection tracking
+                this.disconnectionGraceStartTime = undefined;
+                this.opponentDisconnectedLogged = false;
+                this.stopDisconnectionGracePeriod();
+
+                // Log reconnection event
+                if (wasDisconnected) {
+                    await this.supabaseService.db
+                        .from('game_lobby_logs')
+                        .insert({
+                            game_id: this.currentGameId,
+                            player_id: opponentId,
+                            event: 'reconnected'
+                        })
+                        .then(result => {
+                            if (result.error) {
+                                console.warn('Could not log reconnection event:', result.error);
+                            }
+                        });
+                }
+            }
+
+            if (bothInLobby && opponentIsOnline) {
+                // Check ready states from game meta
+                const meta = game.meta as any || {};
+                const player1Ready = meta.player1Ready || false;
+                const player2Ready = meta.player2Ready || false;
+
+                const currentUserReady = this.currentUserId === game.player1_id ? player1Ready : player2Ready;
+                const opponentReady = this.currentUserId === game.player1_id ? player2Ready : player1Ready;
+
+                if (player1Ready && player2Ready) {
+                    // Both ready, start countdown (only if not already active)
+                    if (!this.isCountdownActive) {
+                        this.matchmakingStateSubject.next({
+                            status: 'matched',
+                            gameId: this.currentGameId,
+                            lobbyStatus: 'countdown',
+                            currentUserReady: true,
+                            opponentReady: true
+                        });
+                        this.startCountdown();
+                    }
+                } else {
+                    // At least one not ready
+                    this.matchmakingStateSubject.next({
+                        status: 'matched',
+                        gameId: this.currentGameId,
+                        lobbyStatus: 'both_in_lobby',
+                        currentUserReady,
+                        opponentReady
+                    });
+                }
+            } else {
+                // Still waiting for opponent or opponent disconnected
+                this.matchmakingStateSubject.next({
+                    status: 'matched',
+                    gameId: this.currentGameId,
+                    lobbyStatus: 'waiting_for_opponent'
                 });
             }
-        } else {
-            // Still waiting for opponent
-            this.matchmakingStateSubject.next({
-                status: 'matched',
-                gameId: this.currentGameId,
-                lobbyStatus: 'waiting_for_opponent'
-            });
         }
     }
 
@@ -523,13 +629,13 @@ export class MatchmakingService {
 
         meta[readyField] = ready;
 
-        const { error } = await this.supabaseService.db
+        const { error: updateError } = await this.supabaseService.db
             .from('games')
             .update({ meta })
             .eq('id', this.currentGameId);
 
-        if (error) {
-            console.error('Error updating ready state:', error);
+        if (updateError) {
+            console.error('Error updating ready state:', updateError);
         } else {
             console.log(`✅ Player ready state updated: ${ready}`);
         }
@@ -776,5 +882,92 @@ export class MatchmakingService {
         this.stopPolling();
         this.stopLobbyPolling();
         this.stopCountdown();
+        this.stopDisconnectionGracePeriod();
+    }
+
+    // Start 10-second disconnection grace period
+    private startDisconnectionGracePeriod(): void {
+        this.stopDisconnectionGracePeriod();
+
+        console.log('⏳ Starting 10-second grace period for opponent reconnection...');
+
+        this.disconnectionGraceSubscription = interval(1000).subscribe(() => {
+            if (!this.disconnectionGraceStartTime) return;
+
+            const elapsed = Date.now() - this.disconnectionGraceStartTime;
+            const remaining = Math.max(0, 10000 - elapsed);
+
+            if (remaining > 0) {
+                const remainingSeconds = Math.ceil(remaining / 1000);
+                console.log(`⏳ Grace period: ${remainingSeconds} seconds remaining...`);
+
+                // Update the UI to show countdown
+                this.matchmakingStateSubject.next({
+                    status: 'matched',
+                    gameId: this.currentGameId,
+                    lobbyStatus: 'opponent_disconnected',
+                    opponentDisconnected: true,
+                    countdown: remainingSeconds
+                });
+            } else {
+                // Grace period expired, return to queue
+                console.log('⏰ Grace period expired, returning to matchmaking queue...');
+                this.handleOpponentDisconnectionTimeout();
+            }
+        });
+    }
+
+    private stopDisconnectionGracePeriod(): void {
+        if (this.disconnectionGraceSubscription) {
+            this.disconnectionGraceSubscription.unsubscribe();
+            this.disconnectionGraceSubscription = undefined;
+        }
+    }
+
+    private async handleOpponentDisconnectionTimeout(): Promise<void> {
+        this.stopDisconnectionGracePeriod();
+
+        // Log the connection lost event now (after grace period)
+        if (!this.opponentDisconnectedLogged && this.currentGameId) {
+            // Get game data to find opponent ID
+            const { data: game } = await this.supabaseService.db
+                .from('games')
+                .select('player1_id, player2_id')
+                .eq('id', this.currentGameId)
+                .single();
+
+            if (game) {
+                const opponentId = this.currentUserId === game.player1_id ? game.player2_id : game.player1_id;
+
+                await this.supabaseService.db
+                    .from('game_lobby_logs')
+                    .insert({
+                        game_id: this.currentGameId,
+                        player_id: opponentId,
+                        event: 'connection_lost'
+                    })
+                    .then(result => {
+                        if (result.error) {
+                            console.warn('Could not log disconnection event:', result.error);
+                        } else {
+                            this.opponentDisconnectedLogged = true;
+                        }
+                    });
+            }
+        }
+
+        // Reset state and return to queue
+        this.disconnectionGraceStartTime = undefined;
+        this.opponentDisconnectedLogged = false;
+        this.currentGameId = undefined;
+
+        // Return to matchmaking queue
+        this.matchmakingStateSubject.next({ status: 'waiting' });
+        this.queueStatusSubject.next(true);
+
+        // Restart polling for new matches
+        this.startPolling();
+
+        console.log('🔄 Returned to matchmaking queue due to opponent disconnection');
     }
 } 

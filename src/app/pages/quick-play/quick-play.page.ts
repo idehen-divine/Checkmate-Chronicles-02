@@ -14,7 +14,8 @@ import {
 	checkmark,
 	play,
 	pencil,
-	close
+	close,
+	wifiOutline
 } from 'ionicons/icons';
 import { HeaderToolbarComponent } from 'src/app/components/navigation/header-toolbar/header-toolbar.component';
 import { LobbyToolbarComponent } from 'src/app/components/navigation/game-toolbar/game-toolbar.component';
@@ -79,7 +80,8 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 			checkmark,
 			play,
 			pencil,
-			close
+			close,
+			wifiOutline
 		});
 	}
 
@@ -99,6 +101,11 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 	}
 
 	private cleanup() {
+		// Log lobby exit if we're in a game
+		if (this.matchmakingState.gameId && this.matchmakingState.status === 'matched') {
+			this.leaveLobby(this.matchmakingState.gameId);
+		}
+
 		// Leave matchmaking queue
 		this.matchmakingService.leaveMatchmakingQueue();
 
@@ -288,6 +295,23 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 		}
 	}
 
+	private async leaveLobby(gameId: string) {
+		// Log that this player has left the lobby
+		const { error } = await this.supabaseService.db
+			.from('game_lobby_logs')
+			.insert({
+				game_id: gameId,
+				player_id: this.supabaseService.user?.id,
+				event: 'left_lobby'
+			});
+
+		if (error) {
+			console.error('Error logging lobby exit:', error);
+		} else {
+			console.log('✅ Left lobby successfully');
+		}
+	}
+
 	private async showMatchmakingError() {
 		const alert = await this.alertController.create({
 			header: 'Matchmaking Error',
@@ -373,10 +397,17 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 	}
 
 	getGameStatus(): string {
-		const { status, lobbyStatus, currentUserReady, opponentReady, countdown } = this.matchmakingState;
+		const { status, lobbyStatus, currentUserReady, opponentReady, countdown, opponentDisconnected } = this.matchmakingState;
 
 		if (status === 'waiting') {
 			return `Finding match${this.matchmakingDots}`;
+		}
+
+		if (lobbyStatus === 'opponent_disconnected' || opponentDisconnected) {
+			if (countdown !== undefined && countdown > 0) {
+				return `Opponent disconnected. Returning to queue in ${countdown}s...`;
+			}
+			return 'Opponent disconnected. Waiting for reconnection...';
 		}
 
 		if (lobbyStatus === 'waiting_for_opponent') {
@@ -415,11 +446,13 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 	}
 
 	canClickReady(): boolean {
-		const { status, lobbyStatus } = this.matchmakingState;
+		const { status, lobbyStatus, opponentDisconnected } = this.matchmakingState;
 		return status === 'matched' &&
 			lobbyStatus !== 'waiting_for_opponent' &&
+			lobbyStatus !== 'opponent_disconnected' &&
 			lobbyStatus !== 'countdown' &&
-			lobbyStatus !== 'starting';
+			lobbyStatus !== 'starting' &&
+			!opponentDisconnected;
 	}
 
 	// Add method to handle back navigation

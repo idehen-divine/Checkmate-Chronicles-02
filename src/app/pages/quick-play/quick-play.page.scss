@@ -130,6 +130,18 @@
   }
 }
 
+// Disconnected player styles
+.player-card.disconnected {
+  opacity: 0.6;
+  filter: grayscale(50%);
+  border: 2px dashed var(--ion-color-danger);
+  
+  .player-status span.disconnected {
+    color: var(--ion-color-danger);
+    font-weight: 600;
+  }
+}
+
 // Page structure - matching app design system
 ion-content {
   --background: var(--app-background);
