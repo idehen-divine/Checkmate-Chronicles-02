@@ -339,13 +339,7 @@ export class QuickPlayPage implements OnInit, OnDestroy {
 
 		console.log('🚀 Navigating to game:', this.matchmakingState.gameId);
 		// Navigate to the actual game with the real game ID
-		this.router.navigate(['/game', this.matchmakingState.gameId], {
-			queryParams: {
-				minutes: this.gameMinutes,
-				hints: this.hintsEnabled,
-				gameName: this.gameName
-			}
-		});
+		this.router.navigate(['/game', this.matchmakingState.gameId]);
 	}
 
 	// Bottom Toolbar Actions
