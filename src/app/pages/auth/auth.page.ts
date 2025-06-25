@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -12,7 +12,7 @@ import { AuthService } from '../../services';
 	standalone: true,
 	imports: [IonContent, IonButton, CommonModule, FormsModule]
 })
-export class AuthPage implements OnInit {
+export class AuthPage {
 	isLoading = false;
 
 	constructor(
@@ -21,8 +21,6 @@ export class AuthPage implements OnInit {
 		private loadingController: LoadingController,
 		private alertController: AlertController
 	) { }
-
-	ngOnInit() { }
 
 	async playAsGuest() {
 		// For now, just navigate to dashboard

@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable, of, from, map, catchError } from 'rxjs';
 import { UserProfile } from '../types';
 import { SupabaseService } from './supabase.service';
+import { AuthService } from './auth.service';
 import * as UserUtils from '../utils/user.util';
 
 @Injectable({
@@ -9,7 +10,12 @@ import * as UserUtils from '../utils/user.util';
 })
 export class UserProfileService {
 
-    constructor(private supabaseService: SupabaseService) { }    // Get user profile data with chess rank
+    constructor(
+        private supabaseService: SupabaseService,
+        private authService: AuthService
+    ) { }
+
+    // Get user profile data with chess rank
     getUserProfile(): Observable<UserProfile> {
         const user = this.supabaseService.user;
         if (!user) {
@@ -17,42 +23,59 @@ export class UserProfileService {
         }
 
         return from(
-            this.supabaseService.db
-                .from('users')
-                .select(`
-                    *,
-                    chess_ranks (
-                        display_name,
-                        color_code
-                    )
-                `)
-                .eq('id', user.id)
-                .single()
-        ).pipe(            map(({ data, error }) => {
-                if (error || !data) {
-                    // Return default profile if no data found using utility
+            this.authService.safeUserOperation(
+                () => this.supabaseService.db
+                    .from('users')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single(),
+                'get_user_profile_with_rank'
+            )
+        ).pipe(
+            map(({ data, error }) => {
+                if (error) {
+                    // If there's an error after safe operation, it means user wasn't logged out
+                    // Return default profile as fallback
                     return UserUtils.createDefaultUserProfile(
-                        user.email, 
+                        user.email,
                         user.user_metadata?.['full_name']
                     );
                 }
 
+                if (!data) {
+                    // No data but no error - return default profile
+                    return UserUtils.createDefaultUserProfile(
+                        user.email,
+                        user.user_metadata?.['full_name']
+                    );
+                }
+
+                // Type assertion for the data
+                const userData = data as any;
+
+                // Get rank name based on ELO using game_ranking logic
+                const userElo = userData.elo || 0;
+                let rankName = 'Beginner';
+
+                if (userElo >= 2300) rankName = 'Grandmaster';
+                else if (userElo >= 1900) rankName = 'Master';
+                else if (userElo >= 1500) rankName = 'Advanced';
+                else if (userElo >= 1000) rankName = 'Intermediate';
+                else rankName = 'Beginner';
+
                 // Format rank display with ELO
-                const rankDisplay = data.chess_ranks
-                    ? `${data.chess_ranks.display_name} | ${data.current_elo || 1000}`
-                    : `Novice | ${data.current_elo || 1000}`;
+                const rankDisplay = `${rankName} | ${userElo}`;
 
                 return {
-                    name: user.user_metadata?.['full_name'] || data.username,
-                    username: data.username,
+                    name: user.user_metadata?.['full_name'] || userData.username,
+                    username: userData.username,
                     email: user.email,
                     rank: rankDisplay,
-                    avatar: UserUtils.generateAvatarUrl(data),
-                    currentElo: data.current_elo,
-                    highestElo: data.highest_elo
+                    avatar: UserUtils.generateAvatarUrl(userData),
+                    currentElo: userData.elo,
+                    highestElo: userData.elo // For now, use current ELO as highest
                 };
-            }),
-            catchError(() => of(UserUtils.createDefaultUserProfile()))
+            })
         );
     }
 
@@ -67,9 +90,13 @@ export class UserProfileService {
         }
 
         try {
-            const { data, error } = await this.supabaseService.updateUserProfile(user.id, updates);
-            if (error) {
-                return { success: false, error: error.message };
+            const result = await this.authService.safeUserOperation(
+                () => this.supabaseService.updateUserProfile(user.id, updates),
+                'update_user_profile'
+            );
+
+            if (result.error) {
+                return { success: false, error: result.error.message };
             }
             return { success: true };
         } catch (error) {

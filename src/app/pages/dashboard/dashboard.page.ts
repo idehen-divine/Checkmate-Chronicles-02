@@ -1,13 +1,15 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { IonContent, IonButton } from '@ionic/angular/standalone';
 import { Router } from '@angular/router';
 import { Location } from '@angular/common';
-import { IonContent, IonButton } from '@ionic/angular/standalone';
 import { SideBarComponent } from '../../components/navigation/side-bar/side-bar.component';
 import { BottomNavComponent } from '../../components/navigation/bottom-nav/bottom-nav.component';
 import { HeaderToolbarComponent } from '../../components/navigation/header-toolbar/header-toolbar.component';
 import { NavigationComponent, createNavigationMixin } from '../../utils';
+import { addIcons } from 'ionicons';
+import { playOutline, peopleOutline, trophyOutline, walletOutline, settingsOutline } from 'ionicons/icons';
 
 @Component({
 	selector: 'app-dashboard',
@@ -16,7 +18,7 @@ import { NavigationComponent, createNavigationMixin } from '../../utils';
 	standalone: true,
 	imports: [IonContent, IonButton, CommonModule, FormsModule, SideBarComponent, BottomNavComponent, HeaderToolbarComponent]
 })
-export class DashboardPage implements OnInit, NavigationComponent {
+export class DashboardPage implements NavigationComponent {
 
 	// Navigation utility
 	private navigationMethods: ReturnType<typeof createNavigationMixin>;
@@ -27,10 +29,13 @@ export class DashboardPage implements OnInit, NavigationComponent {
 	) {
 		// Initialize navigation methods using the mixin
 		this.navigationMethods = createNavigationMixin(this.router, this.location);
-	}
-
-	ngOnInit() {
-		// Dashboard initialization logic here
+		addIcons({
+			playOutline,
+			peopleOutline,
+			trophyOutline,
+			walletOutline,
+			settingsOutline
+		});
 	}
 
 	// Navigation Methods - Use the mixin methods

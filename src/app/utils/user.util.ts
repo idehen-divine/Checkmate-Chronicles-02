@@ -65,12 +65,12 @@ export function generateAvatarUrl(userData: any): string {
     if (userData.avatar_url) {
         return userData.avatar_url;
     }
-    
+
     // Check if user has a profile picture from OAuth
     if (userData.picture) {
         return userData.picture;
     }
-    
+
     // Return default avatar
     return 'assets/images/profile-avatar.png';
 }
@@ -82,15 +82,15 @@ export function formatDisplayName(firstName?: string, lastName?: string, email?:
     if (firstName && lastName) {
         return `${firstName} ${lastName}`;
     }
-    
+
     if (firstName) {
         return firstName;
     }
-    
+
     if (email) {
         return extractUsernameFromEmail(email);
     }
-    
+
     return 'Chess Player';
 }
 
@@ -99,8 +99,8 @@ export function formatDisplayName(firstName?: string, lastName?: string, email?:
  */
 export function isProfileComplete(profile: UserProfile): boolean {
     return !!(
-        profile.name && 
-        profile.username && 
+        profile.name &&
+        profile.username &&
         profile.email
     );
 }
@@ -114,7 +114,7 @@ export function getProfileCompletionPercentage(profile: UserProfile): number {
         const value = profile[field as keyof UserProfile];
         return value && value !== 'assets/images/profile-avatar.png';
     });
-    
+
     return Math.round((completedFields.length / fields.length) * 100);
 }
 
@@ -128,12 +128,26 @@ export function sanitizeUserInput(input: string): string {
 /**
  * Create user profile from raw data
  */
-export function createUserProfileFromData(data: any, defaultRank: string = 'Novice'): UserProfile {
+export function createUserProfileFromData(data: any, email?: string, name?: string): UserProfile {
+    // Get rank name based on ELO using game_ranking logic
+    const userElo = data?.elo || 0;
+    let rankName = 'Beginner';
+
+    if (userElo >= 2300) rankName = 'Grandmaster';
+    else if (userElo >= 1900) rankName = 'Master';
+    else if (userElo >= 1500) rankName = 'Advanced';
+    else if (userElo >= 1000) rankName = 'Intermediate';
+    else rankName = 'Beginner';
+
+    const defaultRank = formatUserRank(userElo, true);
+
     return {
-        name: formatDisplayName(data.first_name, data.last_name, data.email),
-        username: data.username || extractUsernameFromEmail(data.email || ''),
-        email: data.email,
-        rank: data.chess_ranks?.display_name || formatUserRank(defaultRank, false),
-        avatar: generateAvatarUrl(data)
+        name: name || data?.username || 'Guest',
+        username: data?.username || 'guest',
+        email: email || 'guest@example.com',
+        rank: `${rankName} | ${userElo}`,
+        avatar: generateAvatarUrl(data),
+        currentElo: data?.elo || 0,
+        highestElo: data?.elo || 0 // For now, use current ELO as highest
     };
 }

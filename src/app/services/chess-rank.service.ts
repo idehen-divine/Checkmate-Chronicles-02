@@ -14,9 +14,9 @@ export class ChessRankService {
     getChessRanks(): Observable<ChessRank[]> {
         return from(
             this.supabaseService.db
-                .from('chess_ranks')
+                .from('game_ranking')
                 .select('*')
-                .order('rank_order')
+                .order('min_elo', { ascending: true })
         ).pipe(
             map(({ data, error }) => {
                 if (error || !data) {
@@ -25,11 +25,9 @@ export class ChessRankService {
                 return data.map(rank => ({
                     id: rank.id,
                     name: rank.name,
-                    display_name: rank.display_name,
                     min_elo: rank.min_elo,
                     max_elo: rank.max_elo,
-                    color_code: rank.color_code,
-                    rank_order: rank.rank_order
+                    description: rank.description
                 }));
             }),
             catchError(() => of([]))
@@ -40,11 +38,11 @@ export class ChessRankService {
     getRankByElo(elo: number): Observable<ChessRank | null> {
         return from(
             this.supabaseService.db
-                .from('chess_ranks')
+                .from('game_ranking')
                 .select('*')
                 .lte('min_elo', elo)
                 .or(`max_elo.is.null,max_elo.gte.${elo}`)
-                .order('rank_order', { ascending: false })
+                .order('min_elo', { ascending: false })
                 .limit(1)
                 .single()
         ).pipe(
@@ -55,11 +53,9 @@ export class ChessRankService {
                 return {
                     id: data.id,
                     name: data.name,
-                    display_name: data.display_name,
                     min_elo: data.min_elo,
                     max_elo: data.max_elo,
-                    color_code: data.color_code,
-                    rank_order: data.rank_order
+                    description: data.description
                 };
             }),
             catchError(() => of(null))
@@ -70,10 +66,10 @@ export class ChessRankService {
     getNextRank(currentElo: number): Observable<ChessRank | null> {
         return from(
             this.supabaseService.db
-                .from('chess_ranks')
+                .from('game_ranking')
                 .select('*')
                 .gt('min_elo', currentElo)
-                .order('rank_order')
+                .order('min_elo')
                 .limit(1)
                 .single()
         ).pipe(
@@ -84,11 +80,9 @@ export class ChessRankService {
                 return {
                     id: data.id,
                     name: data.name,
-                    display_name: data.display_name,
                     min_elo: data.min_elo,
                     max_elo: data.max_elo,
-                    color_code: data.color_code,
-                    rank_order: data.rank_order
+                    description: data.description
                 };
             }),
             catchError(() => of(null))
@@ -102,26 +96,11 @@ export class ChessRankService {
         progressPercentage: number;
         eloToNextRank: number;
     }> {
-        return from(
-            this.supabaseService.db
-                .from('chess_ranks')
-                .select('*')
-                .order('rank_order')
-        ).pipe(
-            map(({ data, error }) => {
-                if (error || !data) {
-                    return {
-                        currentRank: null,
-                        nextRank: null,
-                        progressPercentage: 0,
-                        eloToNextRank: 0
-                    };
-                }
-
-                // Find current rank
-                const currentRank = data.find(rank => 
+        return this.getChessRanks().pipe(
+            map((ranks) => {
+                const currentRank = ranks.find(rank =>
                     rank.min_elo <= elo && (rank.max_elo === null || elo <= rank.max_elo)
-                );
+                ) || null;
 
                 if (!currentRank) {
                     return {
@@ -132,8 +111,7 @@ export class ChessRankService {
                     };
                 }
 
-                // Find next rank
-                const nextRank = data.find(rank => rank.rank_order === currentRank.rank_order + 1);
+                const nextRank = ranks.find(rank => rank.min_elo > elo) || null;
 
                 let progressPercentage = 0;
                 let eloToNextRank = 0;
@@ -150,29 +128,13 @@ export class ChessRankService {
                         const currentProgress = elo - currentRank.min_elo;
                         progressPercentage = Math.min(100, Math.round((currentProgress / rankRange) * 100));
                     } else {
-                        progressPercentage = 100; // Master rank is open-ended
+                        progressPercentage = 100; // Grandmaster is open-ended
                     }
                 }
 
                 return {
-                    currentRank: {
-                        id: currentRank.id,
-                        name: currentRank.name,
-                        display_name: currentRank.display_name,
-                        min_elo: currentRank.min_elo,
-                        max_elo: currentRank.max_elo,
-                        color_code: currentRank.color_code,
-                        rank_order: currentRank.rank_order
-                    },
-                    nextRank: nextRank ? {
-                        id: nextRank.id,
-                        name: nextRank.name,
-                        display_name: nextRank.display_name,
-                        min_elo: nextRank.min_elo,
-                        max_elo: nextRank.max_elo,
-                        color_code: nextRank.color_code,
-                        rank_order: nextRank.rank_order
-                    } : null,
+                    currentRank: currentRank,
+                    nextRank: nextRank,
                     progressPercentage: Math.max(0, Math.min(100, progressPercentage)),
                     eloToNextRank: Math.max(0, eloToNextRank)
                 };
@@ -193,8 +155,49 @@ export class ChessRankService {
                 if (!rank) {
                     return `Novice | ${elo}`;
                 }
-                return `${rank.display_name} | ${elo}`;
+                return `${rank.name} | ${elo}`;
             })
         );
+    }
+
+    async getUserRank(userId: string): Promise<ChessRank | null> {
+        // First get user's ELO
+        const { data: userData, error: userError } = await this.supabaseService.db
+            .from('users')
+            .select('elo')
+            .eq('id', userId)
+            .single();
+
+        if (userError || !userData) {
+            console.error('Error fetching user ELO:', userError);
+            return null;
+        }
+
+        // Convert Observable to Promise
+        return new Promise((resolve) => {
+            this.getRankByElo(userData.elo).subscribe(rank => resolve(rank));
+        });
+    }
+
+    getRankColor(rankName: string): string {
+        const colors: { [key: string]: string } = {
+            'Beginner': '#8B4513',      // Brown
+            'Intermediate': '#C0C0C0',   // Silver
+            'Advanced': '#FFD700',       // Gold
+            'Master': '#800080',         // Purple
+            'Grandmaster': '#FF0000'     // Red
+        };
+        return colors[rankName] || '#8B4513';
+    }
+
+    formatRankDisplay(rank: ChessRank, elo: number): string {
+        return `${rank.name} | ${elo}`;
+    }
+
+    getProgressInRank(rank: ChessRank, elo: number): number {
+        if (!rank.max_elo) return 100; // Grandmaster is always 100%
+
+        const progress = ((elo - rank.min_elo) / (rank.max_elo - rank.min_elo)) * 100;
+        return Math.max(0, Math.min(100, progress));
     }
 } 

@@ -1,0 +1,279 @@
+// Play Page Styles
+.play-container {
+	display: flex;
+	flex-direction: column;
+	min-height: 100vh;
+	background: var(--app-background);
+}
+
+.play-content {
+	--background: var(--app-background);
+	--color: var(--app-white);
+	padding: 20px 16px 20px 16px;
+	max-width: 1200px;
+	margin: 0;
+	width: 100%;
+
+	@media (min-width: 1024px) {
+		padding: 40px 40px 40px 40px;
+	}
+}
+
+// Play Options Section
+.play-options-section {
+	margin-bottom: 20px;
+
+	@media (min-width: 1024px) {
+		margin-bottom: 30px;
+	}
+}
+
+.section-title {
+	font-family: "Space Grotesk", sans-serif;
+	font-weight: 600;
+	font-size: 24px;
+	color: var(--app-white);
+	margin: 0 0 24px 0;
+	text-align: center;
+
+	@media (min-width: 1024px) {
+		font-size: 28px;
+		margin-bottom: 32px;
+		text-align: left;
+	}
+}
+
+// Game Options Grid - Button layout
+.game-options-grid {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 12px;
+
+	@media (min-width: 480px) {
+		grid-template-columns: repeat(2, 1fr);
+		gap: 16px;
+	}
+
+	@media (min-width: 768px) {
+		grid-template-columns: repeat(3, 1fr);
+		gap: 16px;
+	}
+
+	@media (min-width: 1024px) {
+		grid-template-columns: repeat(5, 1fr);
+		gap: 12px;
+	}
+}
+
+// Play Option Cards - Proper button style like coming-soon page
+.play-option-card {
+	--background: transparent;
+	--color: var(--app-primary);
+	--border-color: var(--app-primary);
+	--border-width: 1px;
+	--border-radius: 20px;
+	
+	background: var(--background);
+	color: var(--color);
+	border: var(--border-width) solid var(--border-color);
+	border-radius: var(--border-radius);
+	cursor: pointer;
+	transition: all 0.2s ease;
+	position: relative;
+	user-select: none;
+	padding: 12px 16px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	height: 48px;
+	font-family: "Space Grotesk", sans-serif;
+	font-weight: 600;
+	font-size: 14px;
+	text-transform: none;
+
+	// Button hover effect like coming-soon page
+	&.button-card {
+		&:hover {
+			--background: var(--app-primary);
+			--color: var(--app-white);
+			transform: translateY(-1px);
+			box-shadow: 0 4px 16px rgba(115, 64, 235, 0.3);
+
+			.option-icon ion-icon {
+				color: var(--app-white) !important;
+			}
+		}
+
+		&:active {
+			transform: translateY(0);
+			box-shadow: 0 2px 8px rgba(115, 64, 235, 0.2);
+		}
+	}
+
+	@media (min-width: 1024px) {
+		height: 56px;
+		font-size: 16px;
+		padding: 16px 20px;
+		--border-radius: 28px;
+		gap: 10px;
+	}
+}
+
+// Option Icon - Fixed for proper display
+.option-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+
+	ion-icon {
+		font-size: 20px;
+		transition: all 0.2s ease;
+		color: var(--app-primary);
+
+		@media (min-width: 1024px) {
+			font-size: 24px;
+		}
+	}
+}
+
+// Fix icon colors on hover
+.play-option-card:hover .option-icon ion-icon {
+	color: var(--app-white) !important;
+}
+
+// Option Content - Inline text for button style
+.option-content {
+	display: flex;
+	align-items: center;
+	white-space: nowrap;
+
+	h3 {
+		font-family: "Space Grotesk", sans-serif;
+		font-weight: 600;
+		font-size: 14px;
+		color: var(--app-primary);
+		margin: 0;
+		line-height: 1;
+		transition: color 0.2s ease;
+
+		@media (min-width: 1024px) {
+			font-size: 16px;
+		}
+	}
+}
+
+// Fix text color on hover
+.play-option-card:hover .option-content h3 {
+	color: var(--app-white) !important;
+}
+
+// Quick Stats Section
+.quick-stats-section {
+	h3 {
+		font-family: "Space Grotesk", sans-serif;
+		font-weight: 600;
+		font-size: 20px;
+		color: var(--app-white);
+		margin: 0 0 20px 0;
+		text-align: center;
+
+		@media (min-width: 1024px) {
+			font-size: 24px;
+			margin-bottom: 24px;
+			text-align: left;
+		}
+	}
+}
+
+.stats-grid {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 16px;
+
+	@media (min-width: 768px) {
+		grid-template-columns: repeat(4, 1fr);
+		gap: 20px;
+	}
+
+	@media (min-width: 1024px) {
+		gap: 24px;
+	}
+}
+
+.stat-item {
+	background: var(--app-card-background);
+	border-radius: 12px;
+	padding: 20px 16px;
+	text-align: center;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	transition: all 0.3s ease;
+
+	&:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+		border-color: rgba(255, 255, 255, 0.2);
+	}
+
+	.stat-icon {
+		margin-bottom: 8px;
+
+		ion-icon {
+			font-size: 24px;
+			filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+
+			@media (min-width: 1024px) {
+				font-size: 28px;
+			}
+		}
+	}
+
+	.stat-value {
+		font-family: "Space Grotesk", sans-serif;
+		font-weight: 700;
+		font-size: 24px;
+		color: var(--app-primary);
+		margin-bottom: 4px;
+
+		@media (min-width: 1024px) {
+			font-size: 28px;
+		}
+	}
+
+	.stat-label {
+		font-size: 12px;
+		color: var(--app-text-medium);
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+
+		@media (min-width: 1024px) {
+			font-size: 14px;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		padding: 24px 20px;
+	}
+}
+
+// Responsive Design
+@media (max-width: 479px) {
+	.play-option-card {
+		height: 44px;
+		font-size: 13px;
+		padding: 10px 14px;
+		gap: 6px;
+
+		.option-icon ion-icon {
+			font-size: 18px;
+		}
+
+		.option-content h3 {
+			font-size: 13px;
+		}
+	}
+}
+
+
+

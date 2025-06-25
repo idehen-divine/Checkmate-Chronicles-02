@@ -1,58 +1,77 @@
 import { Injectable } from '@angular/core';
 import { SupabaseService } from './supabase.service';
-import { BehaviorSubject, Observable, Subscription } from 'rxjs';
+import { AuthService } from './auth.service';
+import { BehaviorSubject, Observable, Subscription, interval } from 'rxjs';
+import { Database } from '../types';
 
 export interface OnlinePlayer {
     id: string;
     username: string;
-    avatar?: string;
-    current_elo: number;
-    current_rank_name?: string;
+    avatar_url?: string;
+    elo: number;
     is_online: boolean;
-    games_played: number;
     wins: number;
     losses: number;
     draws: number;
-    last_seen?: string;
+    last_seen_at?: string;
 }
 
-export interface GameInvitation {
-    id: string;
-    from_user_id: string;
-    to_user_id: string;
-    from_user: OnlinePlayer;
-    to_user: OnlinePlayer;
-    time_control: {
-        initial_time: number;
-        increment: number;
-    };
-    status: 'pending' | 'accepted' | 'declined' | 'expired';
-    created_at: string;
-    expires_at: string;
-}
+// Game mode types - can be extended for different game modes
+export type GameMode = 'quick-match' | 'quick-match-ranked' | 'quick-match-unranked' | 'tournament' | 'custom' | 'challenge' | 'ranked' | 'casual';
 
-export interface MatchmakingQueue {
-    id: string;
-    user_id: string;
-    elo_rating: number;
-    time_control: {
-        initial_time: number;
-        increment: number;
-    };
-    created_at: string;
+// Time control types for quick matches
+export type TimeControl = 'bullet' | 'blitz' | 'rapid' | 'classical';
+
+export type QueueStatus = 'waiting' | 'matching' | 'matched' | 'cancelled';
+
+export type LobbyStatus = 'waiting_for_opponent' | 'both_in_lobby' | 'ready' | 'countdown' | 'starting' | 'opponent_disconnected';
+
+export interface MatchmakingState {
+    status: QueueStatus;
+    gameId?: string;
+    lobbyStatus?: LobbyStatus;
+    opponentReady?: boolean;
+    currentUserReady?: boolean;
+    countdown?: number;
+    opponentDisconnected?: boolean;
 }
 
 @Injectable({
     providedIn: 'root'
 })
 export class MatchmakingService {
-    private matchFoundSubject = new BehaviorSubject<string | null>(null);
-    public matchFound$ = this.matchFoundSubject.asObservable();
+    private static instance: MatchmakingService;
+
+    private matchmakingStateSubject = new BehaviorSubject<MatchmakingState>({ status: 'waiting' });
+    public matchmakingState$ = this.matchmakingStateSubject.asObservable();
 
     private queueStatusSubject = new BehaviorSubject<boolean>(false);
     public inQueue$ = this.queueStatusSubject.asObservable();
 
-    constructor(private supabaseService: SupabaseService) { }
+    private pollingSubscription?: Subscription;
+    private lobbyPollingSubscription?: Subscription;
+    private countdownSubscription?: Subscription;
+    private disconnectionGraceSubscription?: Subscription;
+    private currentGameType?: GameMode;
+    private currentUserId?: string;
+    private currentGameId?: string;
+    private isCountdownActive = false;
+    private opponentDisconnectedLogged = false;
+    private disconnectionGraceStartTime?: number;
+
+    constructor(
+        private supabaseService: SupabaseService,
+        private authService: AuthService
+    ) {
+        MatchmakingService.instance = this;
+    }
+
+    // Static method for external validation calls
+    static async validateStateFromExternal(): Promise<void> {
+        if (MatchmakingService.instance) {
+            await MatchmakingService.instance.validateCurrentState();
+        }
+    }
 
     // Check if user is in queue
     async isUserInQueue(userId?: string): Promise<boolean> {
@@ -63,17 +82,15 @@ export class MatchmakingService {
         const { data, error } = await this.supabaseService.db
             .from('matchmaking_queue')
             .select('id')
-            .eq('user_id', targetUserId)
+            .eq('player_id', targetUserId)
             .single();
 
         return !error && !!data;
     }
 
-    // Debug: Get all users in queue
+    // Get current queue status for debugging
     async getQueueStatus(): Promise<void> {
-        const { data: queueEntries, error } = await this.supabaseService.db
-            .from('matchmaking_queue')
-            .select('*');
+        const { data: queueEntries, error } = await this.supabaseService.getMatchmakingQueue();
 
         if (error) {
             console.error('❌ Error fetching queue status:', error);
@@ -82,83 +99,175 @@ export class MatchmakingService {
         }
     }
 
+    // Check and validate current queue/lobby state (useful after reconnection)
+    async validateCurrentState(): Promise<void> {
+        const user = this.supabaseService.user;
+        if (!user) return;
+
+        console.log('🔍 Validating current matchmaking state after reconnection...');
+
+        // Check if user is actually in queue
+        const { data: queueEntry, error: queueError } = await this.supabaseService.db
+            .from('matchmaking_queue')
+            .select('*')
+            .eq('player_id', user.id)
+            .single();
+
+        if (queueError || !queueEntry) {
+            // User is not in queue but might be stuck in lobby UI
+            console.log('⚠️ User not in queue but may be stuck in lobby state - resetting...');
+
+            // Reset all state
+            this.currentGameId = undefined;
+            this.currentGameType = undefined;
+            this.currentUserId = undefined;
+            this.disconnectionGraceStartTime = undefined;
+            this.opponentDisconnectedLogged = false;
+
+            // Stop all polling and timers
+            this.stopPolling();
+            this.stopLobbyPolling();
+            this.stopCountdown();
+            this.stopDisconnectionGracePeriod();
+
+            // Reset UI state
+            this.matchmakingStateSubject.next({ status: 'waiting' });
+            this.queueStatusSubject.next(false);
+
+            console.log('✅ State validated and reset - user ready for new matchmaking');
+            return;
+        }
+
+        // User is in queue, validate their state
+        this.currentUserId = user.id;
+        this.currentGameType = queueEntry.game_type as GameMode;
+        this.queueStatusSubject.next(true);
+
+        if (queueEntry.status === 'matched') {
+            // User is matched, check if game exists
+            const { data: games, error: gameError } = await this.supabaseService.db
+                .from('games')
+                .select('*')
+                .or(`player1_id.eq.${user.id},player2_id.eq.${user.id}`)
+                .eq('status', 'waiting')
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (!gameError && games && games.length > 0) {
+                // Game exists, restore lobby state
+                this.currentGameId = games[0].id;
+                console.log('✅ Restored lobby state for game:', this.currentGameId);
+
+                // Start lobby polling to check current status
+                this.startLobbyPolling();
+            } else {
+                // No game found but user marked as matched - inconsistent state
+                console.log('⚠️ User marked as matched but no game found - returning to queue...');
+
+                // Reset to waiting state and start polling
+                await this.supabaseService.db
+                    .from('matchmaking_queue')
+                    .update({
+                        status: 'waiting',
+                        matching_with_id: null,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('player_id', user.id);
+
+                this.matchmakingStateSubject.next({ status: 'waiting' });
+                this.startPolling();
+            }
+        } else if (queueEntry.status === 'waiting') {
+            // User is waiting in queue
+            console.log('✅ User confirmed in waiting state');
+            this.matchmakingStateSubject.next({ status: 'waiting' });
+            this.startPolling();
+        } else if (queueEntry.status === 'matching') {
+            // User is in matching state
+            console.log('✅ User in matching state, waiting for match completion...');
+            this.matchmakingStateSubject.next({ status: 'matching' });
+            this.startPolling();
+        }
+
+        console.log('✅ State validation completed');
+    }
+
     // Join matchmaking queue
-    async joinMatchmakingQueue(timeControl: { initial_time: number; increment: number }): Promise<void> {
+    async joinMatchmakingQueue(gameType: GameMode): Promise<void> {
         const user = this.supabaseService.user;
         if (!user) throw new Error('User not authenticated');
 
-        // Ensure user profile exists
-        let { data: userProfile, error: profileError } = await this.supabaseService.getUserProfile(user.id);
+        console.log(`👤 User joining ${gameType} queue: ${user.id}`);
+        this.currentUserId = user.id;
+        this.currentGameType = gameType;
 
-        if (profileError && profileError.code === 'PGRST116') {
-            // User profile doesn't exist, create it
+        // Ensure user profile exists - use safe operation that handles missing profiles
+        const { data: userProfile, error: profileError } = await this.authService.safeUserOperation(
+            () => this.supabaseService.getUserProfile(user.id),
+            'matchmaking_get_user_profile'
+        );
+
+        if (profileError) {
+            console.error('❌ Error getting user profile or user was logged out:', profileError);
+            throw profileError;
+        }
+
+        // If profile is still null after safe operation, create it
+        let finalUserProfile = userProfile;
+        if (!finalUserProfile) {
+            console.log(`🆕 Creating new user profile for ${user.id}...`);
             const newProfile = {
                 id: user.id,
-                email: user.email || '',
                 username: user.user_metadata?.['name'] || user.email?.split('@')[0] || 'Player',
-                current_elo: 1200,
-                highest_elo: 1200,
+                elo: 1200,
                 wins: 0,
                 losses: 0,
                 draws: 0,
-                games_played: 0,
-                is_online: true
+                is_online: true,
+                last_seen_method: 'joining_queue'
             };
 
             const { data: createdProfile, error: createError } = await this.supabaseService.createUserProfile(newProfile);
 
             if (createError) {
-                console.error('Error creating user profile:', createError);
+                console.error('❌ Error creating user profile:', createError);
                 throw new Error('Failed to create user profile');
             }
 
-            userProfile = createdProfile;
-        } else if (profileError) {
-            console.error('Error getting user profile:', profileError);
-            throw profileError;
+            finalUserProfile = createdProfile;
         }
 
-        const elo = userProfile?.current_elo || 1200;
-
         // Update online status
-        await this.supabaseService.db
-            .from('users')
-            .update({
-                is_online: true,
-                last_seen: new Date().toISOString()
-            })
-            .eq('id', user.id);
+        await this.supabaseService.updateUserProfile(user.id, {
+            is_online: true,
+            last_seen_at: new Date().toISOString(),
+            last_seen_method: 'joining_queue'
+        });
 
-        // Remove only THIS user's existing queue entry (not all entries)
-        console.log('Clearing this user\'s existing matchmaking queue entry...');
-        await this.supabaseService.db
-            .from('matchmaking_queue')
-            .delete()
-            .eq('user_id', user.id);
+        // Remove existing queue entry for this user
+        await this.supabaseService.leaveMatchmakingQueue(user.id);
 
-        // Add to queue
-        console.log('Adding user to matchmaking queue...');
-        const { error } = await this.supabaseService.db
-            .from('matchmaking_queue')
-            .insert({
-                user_id: user.id,
-                elo_rating: elo,
-                time_control: timeControl
-            });
+        // Add to queue with 'waiting' status
+        const { error } = await this.supabaseService.joinMatchmakingQueue({
+            player_id: user.id,
+            game_type: gameType,
+            status: 'waiting'
+        });
 
         if (error) {
             console.error('Error joining matchmaking queue:', error);
             throw error;
         }
 
-        console.log('Successfully joined matchmaking queue!');
+        console.log(`✅ Successfully joined ${gameType} queue!`);
         this.queueStatusSubject.next(true);
+        this.matchmakingStateSubject.next({ status: 'waiting' });
 
         // Show current queue status for debugging
         await this.getQueueStatus();
 
-        // Start looking for opponents
-        this.startMatchmaking(user.id, elo, timeControl);
+        // Start polling for matches every 3 seconds
+        this.startPolling();
     }
 
     // Leave matchmaking queue
@@ -166,397 +275,900 @@ export class MatchmakingService {
         const user = this.supabaseService.user;
         if (!user) return;
 
-        const { error } = await this.supabaseService.db
-            .from('matchmaking_queue')
-            .delete()
-            .eq('user_id', user.id);
+        console.log(`👤 User leaving queue: ${user.id}`);
+
+        const { error } = await this.supabaseService.leaveMatchmakingQueue(user.id);
 
         if (error) {
-            console.error('Error leaving queue:', error);
+            console.error('Error leaving matchmaking queue:', error);
         } else {
-            console.log('Successfully left matchmaking queue');
+            console.log('✅ Successfully left matchmaking queue');
         }
 
         this.queueStatusSubject.next(false);
+        this.matchmakingStateSubject.next({ status: 'cancelled' });
+        this.stopPolling();
+        this.stopLobbyPolling();
+        this.stopCountdown();
     }
 
-    // Start matchmaking process
-    private async startMatchmaking(userId: string, userElo: number, timeControl: any): Promise<void> {
-        console.log(`🔍 Starting matchmaking for user ${userId} with ELO ${userElo}...`);
+    // Start polling for matches every 3 seconds
+    private startPolling(): void {
+        this.stopPolling(); // Stop any existing polling
 
-        // Debug: Show all users in queue first
-        const { data: allInQueue, error: allQueueError } = await this.supabaseService.db
-            .from('matchmaking_queue')
-            .select('*');
-        console.log(`🔍 ALL users in queue:`, allInQueue);
+        this.pollingSubscription = interval(3000).subscribe(async () => {
+            if (this.currentUserId && this.currentGameType) {
+                await this.checkForMatches();
+            }
+        });
 
-        // Look for opponents with similar ELO (±200 points)
-        const { data: opponents, error } = await this.supabaseService.db
-            .from('matchmaking_queue')
-            .select(`
-                id,
-                user_id,
-                elo_rating,
-                time_control,
-                created_at
-            `)
-            .neq('user_id', userId)
-            .gte('elo_rating', userElo - 200)
-            .lte('elo_rating', userElo + 200)
-            .order('created_at', { ascending: true })
-            .limit(1);
+        // Initial check
+        if (this.currentUserId && this.currentGameType) {
+            this.checkForMatches();
+        }
+    }
 
-        if (error) {
-            console.error('❌ Error finding opponents:', error);
+    private stopPolling(): void {
+        if (this.pollingSubscription) {
+            this.pollingSubscription.unsubscribe();
+            this.pollingSubscription = undefined;
+        }
+    }
+
+    // Check for matches and handle the matchmaking flow
+    private async checkForMatches(): Promise<void> {
+        if (!this.currentUserId || !this.currentGameType) {
+            if (!this.currentUserId) console.warn('⚠️ No current user ID - cannot check for matches');
+            if (!this.currentGameType) console.warn('⚠️ No current game type - cannot check for matches');
             return;
         }
 
-        console.log(`📊 Found ${opponents?.length || 0} potential opponents:`, opponents);
+        console.log(`🔍 Checking for matches for user ${this.currentUserId} (${this.currentGameType})...`);
 
-        if (opponents && opponents.length > 0) {
-            const opponent = opponents[0];
-            console.log(`🎯 Checking opponent compatibility:`, {
-                opponentId: opponent.user_id,
-                opponentElo: opponent.elo_rating,
-                myTimeControl: timeControl.initial_time,
-                opponentTimeControl: opponent.time_control.initial_time
-            });
-
-            // Check if time controls are compatible (within 5 minutes)
-            const timeDiff = Math.abs(timeControl.initial_time - opponent.time_control.initial_time);
-            console.log(`⏱️ Time difference: ${timeDiff} seconds (max 300)`);
-
-            if (timeDiff <= 300) { // 5 minutes tolerance
-                console.log('✅ Compatible opponent found! Creating game...');
-                await this.createGame(userId, opponent.user_id, timeControl);
-                return; // Stop matchmaking after finding a match
-            } else {
-                console.log('❌ Time controls not compatible, continuing search...');
-            }
-        } else {
-            console.log('⏳ No opponents found, will retry in 3 seconds...');
-        }
-
-        // If no match found, set up a timeout to try again (but only if still in queue)
-        setTimeout(async () => {
-            // Check if user is still in queue before continuing
-            const { data: queueEntry } = await this.supabaseService.db
-                .from('matchmaking_queue')
-                .select('id')
-                .eq('user_id', userId)
-                .single();
-
-            if (queueEntry) {
-                console.log('🔄 User still in queue, retrying matchmaking...');
-                this.startMatchmaking(userId, userElo, timeControl);
-            } else {
-                console.log('🛑 User no longer in queue, stopping matchmaking');
-            }
-        }, 3000); // Try again every 3 seconds
-    }
-
-    // Create a new game between matched players
-    private async createGame(player1Id: string, player2Id: string, timeControl: any): Promise<void> {
-        console.log(`🎮 Creating game between ${player1Id} and ${player2Id}...`);
-        try {
-            const gameId = await this.createGameAndReturnId(player1Id, player2Id, timeControl);
-            console.log(`✅ Game created successfully! Game ID: ${gameId}`);
-            // Notify both players
-            this.matchFoundSubject.next(gameId);
-            console.log('📢 Match found notification sent to both players');
-        } catch (error) {
-            console.error('❌ Error creating game:', error);
-        }
-    }
-
-    // Create match found notifications
-    private async createMatchNotifications(player1Id: string, player2Id: string, gameId: string): Promise<void> {
-        const notifications = [
-            {
-                user_id: player1Id,
-                game_id: gameId,
-                type: 'match_found',
-                read: false
-            },
-            {
-                user_id: player2Id,
-                game_id: gameId,
-                type: 'match_found',
-                read: false
-            }
-        ];
-
-        await this.supabaseService.db
-            .from('match_notifications')
-            .insert(notifications);
-    }
-
-    // Get online players
-    async getOnlinePlayers(): Promise<OnlinePlayer[]> {
-        try {
-            const { data: players, error } = await this.supabaseService.db
-                .from('users')
-                .select(`
-                    id,
-                    username,
-                    current_elo,
-                    games_played,
-                    wins,
-                    losses,
-                    draws,
-                    last_seen,
-                    chess_ranks!current_rank_id (
-                        display_name
-                    )
-                `)
-                .eq('is_online', true)
-                .order('current_elo', { ascending: false })
-                .limit(20);
-
-            if (error) {
-                console.error('Error fetching online players:', error);
-                return [];
-            }
-
-            return players?.map((player: any) => ({
-                id: player.id,
-                username: player.username,
-                avatar: '/assets/images/profile-avatar.png',
-                current_elo: player.current_elo,
-                current_rank_name: player.chess_ranks?.display_name || 'Unranked',
-                is_online: true,
-                games_played: player.games_played,
-                wins: player.wins,
-                losses: player.losses,
-                draws: player.draws,
-                last_seen: player.last_seen
-            })) || [];
-        } catch (error) {
-            console.error('Error in getOnlinePlayers:', error);
-            return [];
-        }
-    }
-
-    // Send invitation
-    async sendInvitation(toUserId: string, timeControl: any): Promise<void> {
-        const user = this.supabaseService.user;
-        if (!user) throw new Error('User not authenticated');
-
-        const expiresAt = new Date();
-        expiresAt.setMinutes(expiresAt.getMinutes() + 5); // Expire in 5 minutes
-
-        const { error } = await this.supabaseService.db
-            .from('game_invitations')
-            .insert({
-                from_user_id: user.id,
-                to_user_id: toUserId,
-                time_control: timeControl,
-                expires_at: expiresAt.toISOString()
-            });
-
-        if (error) throw error;
-    }
-
-    // Get received invitations
-    async getReceivedInvitations(): Promise<GameInvitation[]> {
-        const user = this.supabaseService.user;
-        if (!user) return [];
-
-        try {
-            const { data: invitations, error } = await this.supabaseService.db
-                .from('game_invitations')
-                .select(`
-                    *,
-                    from_user:users!from_user_id (
-                        id,
-                        username,
-                        current_elo,
-                        games_played,
-                        wins,
-                        losses,
-                        draws,
-                        chess_ranks!current_rank_id (
-                            display_name
-                        )
-                    ),
-                    to_user:users!to_user_id (
-                        id,
-                        username,
-                        current_elo,
-                        games_played,
-                        wins,
-                        losses,
-                        draws,
-                        chess_ranks!current_rank_id (
-                            display_name
-                        )
-                    )
-                `)
-                .eq('to_user_id', user.id)
-                .eq('status', 'pending')
-                .gt('expires_at', new Date().toISOString());
-
-            if (error) {
-                console.error('Error fetching invitations:', error);
-                return [];
-            }
-
-            return invitations?.map((inv: any) => ({
-                id: inv.id,
-                from_user_id: inv.from_user_id,
-                to_user_id: inv.to_user_id,
-                from_user: {
-                    id: inv.from_user.id,
-                    username: inv.from_user.username,
-                    avatar: '/assets/images/profile-avatar.png',
-                    current_elo: inv.from_user.current_elo,
-                    current_rank_name: inv.from_user.chess_ranks?.display_name || 'Unranked',
-                    is_online: true,
-                    games_played: inv.from_user.games_played,
-                    wins: inv.from_user.wins,
-                    losses: inv.from_user.losses,
-                    draws: inv.from_user.draws
-                },
-                to_user: {
-                    id: inv.to_user.id,
-                    username: inv.to_user.username,
-                    avatar: '/assets/images/profile-avatar.png',
-                    current_elo: inv.to_user.current_elo,
-                    current_rank_name: inv.to_user.chess_ranks?.display_name || 'Unranked',
-                    is_online: true,
-                    games_played: inv.to_user.games_played,
-                    wins: inv.to_user.wins,
-                    losses: inv.to_user.losses,
-                    draws: inv.to_user.draws
-                },
-                time_control: inv.time_control,
-                status: inv.status,
-                created_at: inv.created_at,
-                expires_at: inv.expires_at
-            })) || [];
-        } catch (error) {
-            console.error('Error in getReceivedInvitations:', error);
-            return [];
-        }
-    }
-
-    // Accept invitation
-    async acceptInvitation(invitationId: string): Promise<string> {
-        const user = this.supabaseService.user;
-        if (!user) throw new Error('User not authenticated');
-
-        // Get invitation details
-        const { data: invitation, error: invError } = await this.supabaseService.db
-            .from('game_invitations')
+        // First, check if we're already matched
+        const { data: currentEntry, error: currentError } = await this.supabaseService.db
+            .from('matchmaking_queue')
             .select('*')
-            .eq('id', invitationId)
+            .eq('player_id', this.currentUserId)
             .single();
 
-        if (invError || !invitation) throw new Error('Invitation not found');
+        if (currentError || !currentEntry) {
+            console.log('User no longer in queue, resetting state and stopping polling');
 
-        // Update invitation status
-        await this.supabaseService.db
-            .from('game_invitations')
-            .update({ status: 'accepted' })
-            .eq('id', invitationId);
+            // Reset ALL state completely when user is no longer in queue
+            this.currentGameId = undefined;
+            this.currentGameType = undefined;
+            this.disconnectionGraceStartTime = undefined;
+            this.opponentDisconnectedLogged = false;
+            this.isCountdownActive = false;
 
-        // Create game and return game ID
-        const gameId = await this.createGameAndReturnId(invitation.from_user_id, invitation.to_user_id, invitation.time_control);
-        return gameId;
+            // Stop all polling and timers
+            this.stopPolling();
+            this.stopLobbyPolling();
+            this.stopCountdown();
+            this.stopDisconnectionGracePeriod();
+
+            // Reset UI state to initial waiting state
+            this.matchmakingStateSubject.next({ status: 'waiting' });
+            this.queueStatusSubject.next(false);
+
+            console.log('🔄 State reset - user returned to initial matchmaking state');
+            return;
+        }
+
+        // If we're already matched, check for game creation
+        if (currentEntry.status === 'matched') {
+            await this.handleMatchedState();
+            return;
+        }
+
+        // If we're in matching state, wait for the match to complete
+        if (currentEntry.status === 'matching') {
+            const matchingWith = currentEntry.matching_with_id;
+            console.log(`⏳ Currently in matching state with player ${matchingWith}, waiting...`);
+            return;
+        }
+
+        // Look for potential opponents
+        const { data: queueEntries, error } = await this.supabaseService.getMatchmakingQueue();
+
+        if (error || !queueEntries) {
+            console.error('Error fetching queue:', error);
+            return;
+        }
+
+        // Filter for same game type and exclude current user
+        const potentialOpponents = queueEntries.filter(entry =>
+            entry.game_type === this.currentGameType &&
+            entry.player_id !== this.currentUserId &&
+            entry.status === 'waiting'
+        );
+
+        console.log(`Found ${potentialOpponents.length} potential opponents`);
+
+        if (potentialOpponents.length === 0) {
+            console.log('No opponents found, continuing to wait...');
+            return;
+        }
+
+        // Get user profiles for ELO compatibility check
+        try {
+            const userProfile = await this.supabaseService.getUserProfile(this.currentUserId);
+            if (!userProfile) {
+                console.error('Could not get user profile - profile may be missing');
+                // Don't fail completely, just log the error and continue with basic matching
+                console.warn('Continuing with basic matching without ELO check');
+            }
+        } catch (error: any) {
+            console.error('Error getting user profile:', error);
+            // If it's a 406 error (user profile missing), handle gracefully
+            if (error?.code === 'PGRST116' || error?.message?.includes('406')) {
+                console.warn('User profile missing (406 error) - this may indicate database sync issues');
+                console.warn('Continuing with basic matching...');
+            } else {
+                console.error('Unexpected error getting user profile:', error);
+                return;
+            }
+        }
+
+        // Find compatible opponent (ELO within ±200)
+        const compatibleOpponent = potentialOpponents.find(opponent => {
+            // For now, we'll get the opponent's ELO from their profile
+            // In a real system, you might cache this or include it in the queue entry
+            return true; // Simplified for now - we'll implement ELO checking later
+        });
+
+        if (!compatibleOpponent) {
+            console.log('No compatible opponents found (ELO range), continuing to wait...');
+            return;
+        }
+
+        console.log(`🎯 Found compatible opponent: ${compatibleOpponent.player_id}`);
+
+        // Attempt to lock both players in 'matching' state
+        await this.lockPlayersForMatching(this.currentUserId, compatibleOpponent.player_id);
     }
 
-    // Create game and return ID
-    private async createGameAndReturnId(player1Id: string, player2Id: string, timeControl: any): Promise<string> {
-        // Randomly assign colors
-        const player1IsWhite = Math.random() > 0.5;
+    // Lock both players in matching state to prevent other matches
+    private async lockPlayersForMatching(player1Id: string, player2Id: string): Promise<void> {
+        try {
+            console.log(`🔒 Locking players for matching: ${player1Id} vs ${player2Id}`);
 
-        const gameData = {
-            player1_id: player1IsWhite ? player1Id : player2Id,
-            player2_id: player1IsWhite ? player2Id : player1Id,
-            game_state: {
-                white_player_id: player1IsWhite ? player1Id : player2Id,
-                black_player_id: player1IsWhite ? player2Id : player1Id,
-                time_control: timeControl,
-                current_turn: 'white',
-                white_time_left: timeControl.initial_time,
-                black_time_left: timeControl.initial_time,
-                fen: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
-                moves: []
-            },
-            status: 'active',
-            started_at: new Date().toISOString()
-        };
+            // Determine who should create the game (random selection to avoid bias)
+            const randomHost = Math.random() < 0.5 ? player1Id : player2Id;
+            const shouldCreateGame = randomHost === this.currentUserId;
 
-        const { data: game, error } = await this.supabaseService.db
+            if (!shouldCreateGame) {
+                console.log('⏳ Waiting for opponent to create the game');
+                return; // Let the other player handle the game creation
+            }
+
+            console.log('🎮 This player will create the game');
+
+            // Use atomic function to update both players to 'matching' status
+            const { data: updateResults, error } = await this.supabaseService.db
+                .rpc('match_players', {
+                    p_player1_id: player1Id,
+                    p_player2_id: player2Id
+                });
+
+            if (error) {
+                console.error('Failed to lock players for matching:', error);
+                // Fallback to individual updates if RPC fails
+                await this.fallbackLockPlayers(player1Id, player2Id);
+                return;
+            }
+
+            if (!updateResults || updateResults.length !== 2) {
+                console.log('One or both players no longer available for matching');
+                return;
+            }
+
+            console.log('✅ Players locked successfully, creating game...');
+
+            // Create the game
+            await this.createGame(player1Id, player2Id, this.currentGameType!);
+
+        } catch (error) {
+            console.error('Error in lockPlayersForMatching:', error);
+            // Try fallback approach
+            await this.fallbackLockPlayers(player1Id, player2Id);
+        }
+    }
+
+    // Fallback method for locking players if RPC fails
+    private async fallbackLockPlayers(player1Id: string, player2Id: string): Promise<void> {
+        console.log('🔄 Using fallback locking method');
+
+        // Update both players to 'matching' status with matching_with_id
+        const [result1, result2] = await Promise.all([
+            this.supabaseService.db
+                .from('matchmaking_queue')
+                .update({
+                    status: 'matching',
+                    matching_with_id: player2Id,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('player_id', player1Id)
+                .eq('status', 'waiting'),
+            this.supabaseService.db
+                .from('matchmaking_queue')
+                .update({
+                    status: 'matching',
+                    matching_with_id: player1Id,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('player_id', player2Id)
+                .eq('status', 'waiting')
+        ]);
+
+        if (result1.error || result2.error) {
+            console.error('Fallback locking failed:', result1.error || result2.error);
+            return;
+        }
+
+        // Check if both updates were successful (affected rows > 0)
+        if (result1.count === 0 || result2.count === 0) {
+            console.log('One or both players no longer in waiting state');
+            return;
+        }
+
+        console.log('✅ Fallback locking successful, creating game...');
+        await this.createGame(player1Id, player2Id, this.currentGameType!);
+    }
+
+    // Handle when user is in matched state
+    private async handleMatchedState(): Promise<void> {
+        console.log('🎮 User is in matched state, looking for game...');
+
+        // Look for a game where this user is a player
+        const { data: games, error } = await this.supabaseService.db
             .from('games')
-            .insert(gameData)
-            .select()
-            .single();
+            .select('*')
+            .or(`player1_id.eq.${this.currentUserId},player2_id.eq.${this.currentUserId}`)
+            .eq('status', 'waiting')
+            .order('created_at', { ascending: false })
+            .limit(1);
 
         if (error) {
-            console.error('Error creating game:', error);
-            throw new Error('Failed to create game');
+            console.error('Error looking for game:', error);
+            return;
+        }
+
+        if (games && games.length > 0) {
+            const game = games[0];
+            console.log(`🎯 Found game: ${game.id}`);
+
+            this.currentGameId = game.id;
+            this.matchmakingStateSubject.next({
+                status: 'matched',
+                gameId: game.id,
+                lobbyStatus: 'waiting_for_opponent'
+            });
+
+            // Stop queue polling and start lobby polling
+            this.stopPolling();
+            this.startLobbyPolling();
+        }
+    }
+
+    // Start polling for lobby updates
+    private startLobbyPolling(): void {
+        this.stopLobbyPolling(); // Stop any existing polling
+
+        this.lobbyPollingSubscription = interval(2000).subscribe(async () => {
+            if (this.currentGameId) {
+                await this.checkLobbyStatus();
+            }
+        });
+
+        // Initial check
+        if (this.currentGameId) {
+            this.checkLobbyStatus();
+        }
+    }
+
+    private stopLobbyPolling(): void {
+        if (this.lobbyPollingSubscription) {
+            this.lobbyPollingSubscription.unsubscribe();
+            this.lobbyPollingSubscription = undefined;
+        }
+    }
+
+    // Check lobby status and ready states
+    private async checkLobbyStatus(): Promise<void> {
+        if (!this.currentGameId || !this.currentUserId) {
+            // If we don't have game ID but lobby polling is still running, stop it
+            if (this.lobbyPollingSubscription) {
+                console.warn('⚠️ Lobby polling running without game ID - stopping polling');
+                this.stopLobbyPolling();
+            }
+            return;
+        }
+
+        // Get game data
+        const { data: game, error } = await this.supabaseService.db
+            .from('games')
+            .select('*')
+            .eq('id', this.currentGameId)
+            .single();
+
+        if (error || !game) {
+            console.error('Error getting game data:', error);
+            return;
+        }
+
+        // Check if both players are in lobby (by checking lobby logs)
+        const { data: lobbyLogs, error: lobbyError } = await this.supabaseService.db
+            .from('game_lobby_logs')
+            .select('player_id, event, created_at')
+            .eq('game_id', this.currentGameId)
+            .order('created_at', { ascending: false });
+
+        if (lobbyError) {
+            console.error('Error getting lobby logs:', lobbyError);
+            // Fallback: If we can't access lobby logs (due to RLS or other issues),
+            // assume both players are in lobby if the game exists and both players are online
+            console.log('⚠️ Falling back to assuming both players are in lobby due to lobby log access issues');
+        }
+
+        // Get latest entry for each player to determine current lobby status
+        const playerLobbyStatus = new Map<string, string>();
+        if (lobbyLogs) {
+            for (const log of lobbyLogs) {
+                if (!playerLobbyStatus.has(log.player_id)) {
+                    playerLobbyStatus.set(log.player_id, log.event);
+                }
+            }
+        }
+
+        const player1InLobby = lobbyError ? true : playerLobbyStatus.get(game.player1_id) === 'entered_lobby';
+        const player2InLobby = lobbyError ? true : playerLobbyStatus.get(game.player2_id) === 'entered_lobby';
+        const bothInLobby = player1InLobby && player2InLobby;
+
+        // Additionally check if players are still online
+        const { data: playersOnlineStatus, error: onlineError } = await this.supabaseService.db
+            .from('users')
+            .select('id, is_online, last_seen_at')
+            .in('id', [game.player1_id, game.player2_id]);
+
+        if (onlineError) {
+            console.error('Error checking players online status:', onlineError);
+            return;
+        }
+
+        // Get online status for both players
+        const player1Status = playersOnlineStatus?.find(p => p.id === game.player1_id);
+        const player2Status = playersOnlineStatus?.find(p => p.id === game.player2_id);
+
+        // Check if opponent is still online (last seen within 15 seconds)
+        const opponentId = this.currentUserId === game.player1_id ? game.player2_id : game.player1_id;
+        const opponentStatus = playersOnlineStatus?.find(p => p.id === opponentId);
+        const now = new Date();
+        const fifteenSecondsAgo = new Date(now.getTime() - 15000);
+
+        const opponentIsOnline = opponentStatus?.is_online &&
+            opponentStatus?.last_seen_at &&
+            new Date(opponentStatus.last_seen_at) > fifteenSecondsAgo;
+
+        // If we have lobby log errors, use online status as fallback for lobby presence
+        // Logic: if both players are online and game exists, assume they're in lobby
+        const player1IsOnline = player1Status?.is_online && player1Status?.last_seen_at &&
+            new Date(player1Status.last_seen_at) > fifteenSecondsAgo;
+        const player2IsOnline = player2Status?.is_online && player2Status?.last_seen_at &&
+            new Date(player2Status.last_seen_at) > fifteenSecondsAgo;
+
+        // Enhanced logic: combine lobby logs with online status
+        const player1ActuallyInLobby = lobbyError ? player1IsOnline :
+            (playerLobbyStatus.get(game.player1_id) === 'entered_lobby' && player1IsOnline);
+        const player2ActuallyInLobby = lobbyError ? player2IsOnline :
+            (playerLobbyStatus.get(game.player2_id) === 'entered_lobby' && player2IsOnline);
+        const bothActuallyInLobby = player1ActuallyInLobby && player2ActuallyInLobby;
+
+        console.log('🏢 Lobby Status Check:', {
+            lobbyError: !!lobbyError,
+            player1InLobby: player1InLobby,
+            player2InLobby: player2InLobby,
+            bothInLobby: bothInLobby,
+            player1IsOnline,
+            player2IsOnline,
+            player1ActuallyInLobby,
+            player2ActuallyInLobby,
+            bothActuallyInLobby,
+            opponentIsOnline
+        });
+
+        // Use the enhanced logic
+        const finalBothInLobby = bothActuallyInLobby;
+
+        // If opponent has disconnected, handle it
+        if (finalBothInLobby && !opponentIsOnline) {
+            const now = Date.now();
+
+            // If this is the first time we detect disconnection, start grace period
+            if (!this.opponentDisconnectedLogged && !this.disconnectionGraceStartTime) {
+                console.warn('🔌 Opponent appears to have disconnected - starting 15 second grace period');
+                this.disconnectionGraceStartTime = now;
+
+                // Update lobby status to show opponent disconnected
+                this.matchmakingStateSubject.next({
+                    status: 'matched',
+                    gameId: this.currentGameId,
+                    lobbyStatus: 'opponent_disconnected',
+                    opponentDisconnected: true
+                });
+
+                // Cancel any active countdown
+                if (this.isCountdownActive) {
+                    this.stopCountdown();
+                    console.log('⏰ Countdown cancelled due to opponent disconnection');
+                }
+
+                // Start 15-second grace period timer
+                this.startDisconnectionGracePeriod();
+                return;
+            }
+
+            // If we're already in grace period, just continue waiting
+            if (this.disconnectionGraceStartTime && (now - this.disconnectionGraceStartTime) < 15000) {
+                const remainingSeconds = Math.ceil((15000 - (now - this.disconnectionGraceStartTime)) / 1000);
+                console.log(`⏳ Grace period: ${remainingSeconds} seconds remaining...`);
+                return;
+            }
+
+            return;
+        }
+
+        // Check if opponent has reconnected after being disconnected
+        if (finalBothInLobby && opponentIsOnline) {
+            // Clear disconnection state if opponent reconnected
+            if (this.disconnectionGraceStartTime || this.opponentDisconnectedLogged) {
+                console.log('🔌 Opponent has reconnected!');
+
+                // Only log reconnection if we had started tracking disconnection
+                const wasDisconnected = this.disconnectionGraceStartTime || this.opponentDisconnectedLogged;
+
+                // Reset disconnection tracking
+                this.disconnectionGraceStartTime = undefined;
+                this.opponentDisconnectedLogged = false;
+                this.stopDisconnectionGracePeriod();
+
+                // Try to log reconnection event - but don't fail if RLS blocks it
+                if (wasDisconnected) {
+                    try {
+                        await this.supabaseService.db
+                            .rpc('log_lobby_event', {
+                                p_game_id: this.currentGameId,
+                                p_player_id: opponentId,
+                                p_event: 'reconnected'
+                            });
+                        console.log('✅ Logged reconnection event');
+                    } catch (error) {
+                        console.warn('Could not log reconnection event:', error);
+                    }
+                }
+            }
+
+            if (finalBothInLobby && opponentIsOnline) {
+                // Check ready states from game meta
+                const meta = game.meta as any || {};
+                const player1Ready = meta.player1Ready || false;
+                const player2Ready = meta.player2Ready || false;
+
+                const currentUserReady = this.currentUserId === game.player1_id ? player1Ready : player2Ready;
+                const opponentReady = this.currentUserId === game.player1_id ? player2Ready : player1Ready;
+
+                if (player1Ready && player2Ready) {
+                    // Both ready, start countdown (only if not already active)
+                    if (!this.isCountdownActive) {
+                        this.matchmakingStateSubject.next({
+                            status: 'matched',
+                            gameId: this.currentGameId,
+                            lobbyStatus: 'countdown',
+                            currentUserReady: true,
+                            opponentReady: true
+                        });
+                        this.startCountdown();
+                    }
+                } else {
+                    // At least one not ready
+                    this.matchmakingStateSubject.next({
+                        status: 'matched',
+                        gameId: this.currentGameId,
+                        lobbyStatus: 'both_in_lobby',
+                        currentUserReady,
+                        opponentReady
+                    });
+                }
+            } else {
+                // Still waiting for opponent or opponent disconnected
+                this.matchmakingStateSubject.next({
+                    status: 'matched',
+                    gameId: this.currentGameId,
+                    lobbyStatus: 'waiting_for_opponent'
+                });
+            }
+        }
+    }
+
+    // Set player ready state
+    async setPlayerReady(ready: boolean): Promise<void> {
+        if (!this.currentGameId || !this.currentUserId) return;
+
+        const { data: game, error: gameError } = await this.supabaseService.db
+            .from('games')
+            .select('*')
+            .eq('id', this.currentGameId)
+            .single();
+
+        if (gameError || !game) {
+            console.error('Error getting game for ready state:', gameError);
+            return;
+        }
+
+        const meta = (game.meta as any) || {};
+        const readyField = this.currentUserId === game.player1_id ? 'player1Ready' : 'player2Ready';
+
+        meta[readyField] = ready;
+
+        const { error: updateError } = await this.supabaseService.db
+            .from('games')
+            .update({ meta })
+            .eq('id', this.currentGameId);
+
+        if (updateError) {
+            console.error('Error updating ready state:', updateError);
+        } else {
+            console.log(`✅ Player ready state updated: ${ready}`);
+        }
+    }
+
+    // Start 5-second countdown
+    private startCountdown(): void {
+        this.stopCountdown();
+        this.stopLobbyPolling(); // Stop lobby polling during countdown
+        this.isCountdownActive = true;
+
+        console.log('🕐 Starting 5-second countdown...');
+
+        let countdown = 5;
+        this.matchmakingStateSubject.next({
+            status: 'matched',
+            gameId: this.currentGameId,
+            lobbyStatus: 'countdown',
+            countdown
+        });
+
+        this.countdownSubscription = interval(1000).subscribe(() => {
+            countdown--;
+            console.log(`⏰ Countdown: ${countdown}`);
+
+            if (countdown > 0) {
+                this.matchmakingStateSubject.next({
+                    status: 'matched',
+                    gameId: this.currentGameId,
+                    lobbyStatus: 'countdown',
+                    countdown
+                });
+            } else {
+                // Countdown finished, start game
+                console.log('🚀 Countdown finished, starting game!');
+                this.isCountdownActive = false;
+                this.startGame();
+            }
+        });
+    }
+
+    private stopCountdown(): void {
+        if (this.countdownSubscription) {
+            this.countdownSubscription.unsubscribe();
+            this.countdownSubscription = undefined;
+        }
+        this.isCountdownActive = false;
+    }
+
+    // Start the actual game
+    private async startGame(): Promise<void> {
+        if (!this.currentGameId) return;
+
+        console.log('🚀 Starting game!');
+
+        // Update game status to active
+        const { error } = await this.supabaseService.db
+            .from('games')
+            .update({
+                status: 'active',
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', this.currentGameId);
+
+        if (error) {
+            console.error('Error starting game:', error);
+            return;
         }
 
         // Remove both players from queue
-        await this.supabaseService.db
-            .from('matchmaking_queue')
-            .delete()
-            .in('user_id', [player1Id, player2Id]);
+        const { data: game } = await this.supabaseService.db
+            .from('games')
+            .select('player1_id, player2_id')
+            .eq('id', this.currentGameId)
+            .single();
 
-        // Create notifications
-        await this.createMatchNotifications(player1Id, player2Id, game.id);
+        if (game) {
+            await this.supabaseService.leaveMatchmakingQueue(game.player1_id);
+            await this.supabaseService.leaveMatchmakingQueue(game.player2_id);
+        }
 
-        return game.id;
+        this.matchmakingStateSubject.next({
+            status: 'matched',
+            gameId: this.currentGameId,
+            lobbyStatus: 'starting'
+        });
+
+        this.stopLobbyPolling();
+        this.stopCountdown();
+        this.queueStatusSubject.next(false);
+
+        console.log('✅ Game started successfully!');
     }
 
-    // Decline invitation
-    async declineInvitation(invitationId: string): Promise<void> {
-        await this.supabaseService.db
-            .from('game_invitations')
-            .update({ status: 'declined' })
-            .eq('id', invitationId);
+    private async createGame(player1Id: string, player2Id: string, gameType: GameMode): Promise<void> {
+        console.log(`🎮 Creating game between ${player1Id} and ${player2Id}`);
+
+        try {
+            // Create game with metadata including time control
+            const gameData = {
+                player1_id: player1Id,
+                player2_id: player2Id,
+                game_type: gameType,
+                status: 'waiting' as const,
+                meta: {
+                    timeControl: this.getDefaultTimeControlForGameMode(gameType),
+                    initialTime: this.getDefaultTimeControlForGameMode(gameType) * 60, // Convert to seconds
+                    increment: 0,
+                    board: 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1', // Starting position
+                    moves: [],
+                    turn: 'white',
+                    gameStarted: false,
+                    player1Ready: false,
+                    player2Ready: false
+                }
+            };
+
+            const { data: game, error } = await this.supabaseService.createGame(gameData);
+
+            if (error || !game) {
+                console.error('❌ Error creating game:', error);
+                throw error || new Error('Failed to create game');
+            }
+
+            // Update both players to 'matched' status using atomic function
+            const { data: updateResults, error: updateError } = await this.supabaseService.db
+                .rpc('update_players_to_matched', {
+                    p_player1_id: player1Id,
+                    p_player2_id: player2Id
+                });
+
+            if (updateError) {
+                console.error('Error updating players to matched status:', updateError);
+                // Fallback to individual updates
+                const [result1, result2] = await Promise.all([
+                    this.supabaseService.db
+                        .from('matchmaking_queue')
+                        .update({ status: 'matched', updated_at: new Date().toISOString() })
+                        .eq('player_id', player1Id),
+                    this.supabaseService.db
+                        .from('matchmaking_queue')
+                        .update({ status: 'matched', updated_at: new Date().toISOString() })
+                        .eq('player_id', player2Id)
+                ]);
+
+                if (result1.error || result2.error) {
+                    console.error('Fallback update also failed:', result1.error || result2.error);
+                    throw new Error('Failed to update player statuses');
+                }
+                console.log('✅ Fallback: Both players updated to matched status');
+            } else {
+                console.log('✅ Both players updated to matched status atomically');
+            }
+
+            console.log(`✅ Game created successfully: ${game.id}`);
+
+        } catch (error) {
+            console.error('❌ Error in createGame:', error);
+            throw error;
+        }
     }
 
-    // Update online status
+    // Get default time control in minutes for different game modes
+    private getDefaultTimeControlForGameMode(gameMode: GameMode): number {
+        switch (gameMode) {
+            case 'quick-match':
+            case 'quick-match-unranked':
+                return 10; // 10 minutes default for quick matches
+            case 'quick-match-ranked':
+                return 15; // 15 minutes for ranked quick matches
+            case 'tournament':
+                return 15; // 15 minutes for tournament games
+            case 'ranked':
+                return 10; // 10 minutes for ranked games
+            case 'challenge':
+                return 10; // 10 minutes for challenges
+            case 'custom':
+                return 15; // 15 minutes for custom games
+            case 'casual':
+                return 10; // 10 minutes for casual games
+            default:
+                return 10; // Default fallback
+        }
+    }
+
+    // Helper method to get time control from minutes (for backward compatibility)
+    getTimeControlFromMinutes(minutes: number): TimeControl {
+        if (minutes <= 3) return 'bullet';
+        if (minutes <= 10) return 'blitz';
+        if (minutes <= 30) return 'rapid';
+        return 'classical';
+    }
+
+    // Get online players for challenges
+    async getOnlinePlayers(): Promise<OnlinePlayer[]> {
+        try {
+            const result = await this.authService.safeUserOperation(
+                () => this.supabaseService.db
+                    .from('users')
+                    .select('id, username, avatar_url, elo, is_online, wins, losses, draws, last_seen_at')
+                    .eq('is_online', true)
+                    .order('elo', { ascending: false })
+                    .limit(50),
+                'get_online_players'
+            );
+
+            if (result.error) {
+                console.error('Error fetching online players:', result.error);
+                return [];
+            }
+
+            return (result.data as any) || [];
+        } catch (error) {
+            console.error('Error fetching online players:', error);
+            return [];
+        }
+    }
+
+    // Update user's online status
     async updateOnlineStatus(isOnline: boolean): Promise<void> {
         const user = this.supabaseService.user;
         if (!user) return;
 
-        await this.supabaseService.db
-            .from('users')
-            .update({
-                is_online: isOnline,
-                last_seen: new Date().toISOString()
-            })
-            .eq('id', user.id);
+        try {
+            const result = await this.authService.safeUserOperation(
+                () => this.supabaseService.updateUserProfile(user.id, {
+                    is_online: isOnline,
+                    last_seen_at: new Date().toISOString(),
+                    last_seen_method: isOnline ? 'active' : 'offline'
+                }),
+                'update_online_status'
+            );
+
+            if (result.error) {
+                console.error('Error updating online status:', result.error);
+            }
+        } catch (error) {
+            console.error('Error updating online status:', error);
+        }
     }
 
-    // Subscribe to real-time updates
-    subscribeToMatchFound(callback: (gameId: string) => void): Subscription {
-        return this.matchFound$.subscribe(gameId => {
-            if (gameId) callback(gameId);
+    // Clean up subscriptions
+    cleanup(): void {
+        this.stopPolling();
+        this.stopLobbyPolling();
+        this.stopCountdown();
+        this.stopDisconnectionGracePeriod();
+    }
+
+    // Start 15-second disconnection grace period
+    private startDisconnectionGracePeriod(): void {
+        this.stopDisconnectionGracePeriod();
+
+        console.log('⏳ Starting 15-second grace period for opponent reconnection...');
+
+        this.disconnectionGraceSubscription = interval(1000).subscribe(() => {
+            if (!this.disconnectionGraceStartTime) return;
+
+            const elapsed = Date.now() - this.disconnectionGraceStartTime;
+            const remaining = Math.max(0, 15000 - elapsed);
+
+            if (remaining > 0) {
+                const remainingSeconds = Math.ceil(remaining / 1000);
+                console.log(`⏳ Grace period: ${remainingSeconds} seconds remaining...`);
+
+                // Update the UI to show countdown
+                this.matchmakingStateSubject.next({
+                    status: 'matched',
+                    gameId: this.currentGameId,
+                    lobbyStatus: 'opponent_disconnected',
+                    opponentDisconnected: true,
+                    countdown: remainingSeconds
+                });
+            } else {
+                // Grace period expired, return to queue
+                console.log('⏰ Grace period expired, returning to matchmaking queue...');
+                this.handleOpponentDisconnectionTimeout();
+            }
         });
     }
 
-    // Subscribe to invitations
-    subscribeToInvitations(callback: () => void): Subscription {
-        const user = this.supabaseService.user;
-        if (!user) return new Subscription();
+    private stopDisconnectionGracePeriod(): void {
+        if (this.disconnectionGraceSubscription) {
+            this.disconnectionGraceSubscription.unsubscribe();
+            this.disconnectionGraceSubscription = undefined;
+        }
+    }
 
-        const channel = this.supabaseService.db
-            .channel('invitations')
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'game_invitations',
-                filter: `to_user_id=eq.${user.id}`
-            }, callback);
+    private async handleOpponentDisconnectionTimeout(): Promise<void> {
+        this.stopDisconnectionGracePeriod();
 
-        channel.subscribe();
+        // CRITICAL: Stop lobby polling before resetting state
+        this.stopLobbyPolling();
+        this.stopCountdown();
 
-        return new Subscription(() => {
-            channel.unsubscribe();
-        });
+        // Get game data to find opponent ID and remove them from queue
+        if (this.currentGameId) {
+            const { data: game } = await this.supabaseService.db
+                .from('games')
+                .select('player1_id, player2_id')
+                .eq('id', this.currentGameId)
+                .single();
+
+            if (game) {
+                const opponentId = this.currentUserId === game.player1_id ? game.player2_id : game.player1_id;
+
+                // Remove opponent from matchmaking queue since they're disconnected
+                console.log('🚫 Removing disconnected opponent from queue...');
+                await this.supabaseService.leaveMatchmakingQueue(opponentId);
+
+                // Put current user back in waiting state (don't remove from queue completely)
+                console.log('🔄 Resetting current user to waiting state...');
+                await this.supabaseService.db
+                    .from('matchmaking_queue')
+                    .update({
+                        status: 'waiting',
+                        matching_with_id: null,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('player_id', this.currentUserId!);
+
+                // Try to log the disconnection event - but don't fail if RLS blocks it
+                try {
+                    await this.supabaseService.db
+                        .rpc('log_lobby_event', {
+                            p_game_id: this.currentGameId,
+                            p_player_id: opponentId,
+                            p_event: 'connection_lost'
+                        });
+                    console.log('✅ Logged disconnection event');
+                } catch (error) {
+                    console.warn('Could not log disconnection event:', error);
+                }
+            }
+        }
+
+        // Reset state but preserve game type for continued matchmaking
+        this.disconnectionGraceStartTime = undefined;
+        this.opponentDisconnectedLogged = false;
+        this.currentGameId = undefined;
+        // Keep currentGameType so matchmaking can continue!
+        this.isCountdownActive = false;
+
+        // Return to matchmaking queue
+        this.matchmakingStateSubject.next({ status: 'waiting' });
+        this.queueStatusSubject.next(true);
+
+        // Restart polling for new matches
+        this.startPolling();
+
+        console.log('🔄 Returned to matchmaking queue due to opponent disconnection');
+        console.log(`🔍 Resuming matchmaking for game type: ${this.currentGameType}`);
     }
 } 

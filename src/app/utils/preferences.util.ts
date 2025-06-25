@@ -5,11 +5,10 @@
 
 export interface UserPreferences {
     sounds_enabled: boolean;
-    hints_enabled: boolean;
-    legal_moves_enabled: boolean;
-    game_invites_enabled: boolean;
-    nft_mints_enabled: boolean;
-    announcements_enabled: boolean;
+    notifications_enabled: boolean;
+    theme: 'light' | 'dark' | 'system';
+    allow_friend_challenges: boolean;
+    custom_data: any;
 }
 
 /**
@@ -18,11 +17,10 @@ export interface UserPreferences {
 export function getDefaultPreferences(): UserPreferences {
     return {
         sounds_enabled: true,
-        hints_enabled: true,
-        legal_moves_enabled: true,
-        game_invites_enabled: true,
-        nft_mints_enabled: true,
-        announcements_enabled: true
+        notifications_enabled: true,
+        theme: 'system',
+        allow_friend_challenges: true,
+        custom_data: {}
     };
 }
 
@@ -30,9 +28,7 @@ export function getDefaultPreferences(): UserPreferences {
  * Check if any notifications are enabled
  */
 export function areNotificationsEnabled(preferences: UserPreferences): boolean {
-    return preferences.game_invites_enabled ||
-           preferences.nft_mints_enabled ||
-           preferences.announcements_enabled;
+    return preferences.notifications_enabled;
 }
 
 /**
@@ -71,16 +67,21 @@ export function validatePreferences(preferences: any): preferences is UserPrefer
 
     const requiredKeys: (keyof UserPreferences)[] = [
         'sounds_enabled',
-        'hints_enabled', 
-        'legal_moves_enabled',
-        'game_invites_enabled',
-        'nft_mints_enabled',
-        'announcements_enabled'
+        'notifications_enabled',
+        'theme',
+        'allow_friend_challenges',
+        'custom_data'
     ];
 
-    return requiredKeys.every(key => 
-        key in preferences && typeof preferences[key] === 'boolean'
-    );
+    return requiredKeys.every(key => {
+        if (key === 'theme') {
+            return key in preferences && ['light', 'dark', 'system'].includes(preferences[key]);
+        }
+        if (key === 'custom_data') {
+            return key in preferences;
+        }
+        return key in preferences && typeof preferences[key] === 'boolean';
+    });
 }
 
 /**
@@ -107,15 +108,12 @@ export function getPreferencesSummary(preferences: UserPreferences): {
     };
 } {
     const gameplaySettings = [
-        preferences.sounds_enabled,
-        preferences.hints_enabled,
-        preferences.legal_moves_enabled
+        preferences.sounds_enabled
     ];
 
     const notificationSettings = [
-        preferences.game_invites_enabled,
-        preferences.nft_mints_enabled,
-        preferences.announcements_enabled
+        preferences.notifications_enabled,
+        preferences.allow_friend_challenges
     ];
 
     const allSettings = [...gameplaySettings, ...notificationSettings];

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -14,7 +14,7 @@ import { trophyOutline, arrowBackOutline } from 'ionicons/icons';
 	standalone: true,
 	imports: [IonContent, IonIcon, IonButton, CommonModule, FormsModule]
 })
-export class ComingSoonPage implements OnInit {
+export class ComingSoonPage {
 	showEasterMessage = false;
 	private longPressTimer: any;
 
@@ -25,8 +25,6 @@ export class ComingSoonPage implements OnInit {
 		addIcons({ trophyOutline, arrowBackOutline });
 	}
 
-	ngOnInit() {
-	}
 	onGoBack() {
 		// Just go back using location - simple navigation doesn't need utility
 		this.location.back();

@@ -130,6 +130,18 @@
   }
 }
 
+// Disconnected player styles
+.player-card.disconnected {
+  opacity: 0.6;
+  filter: grayscale(50%);
+  border: 2px dashed var(--ion-color-danger);
+  
+  .player-status span.disconnected {
+    color: var(--ion-color-danger);
+    font-weight: 600;
+  }
+}
+
 // Page structure - matching app design system
 ion-content {
   --background: var(--app-background);
@@ -203,6 +215,21 @@ ion-content {
         --color: var(--app-white);
         font-family: 'Space Grotesk', sans-serif;
         font-weight: 600;
+      }
+    }
+
+    .action-section {
+      margin-top: 16px;
+      display: flex;
+      justify-content: center;
+
+      ion-button {
+        --border-radius: 24px;
+        --padding-top: 10px;
+        --padding-bottom: 10px;
+        --font-size: 12px;
+        font-weight: 600;
+        width: 80%;
       }
     }
   }
@@ -522,3 +549,4 @@ ion-content {
     --border-color: var(--ion-color-step-300);
   }
 }
+ 

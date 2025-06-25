@@ -58,23 +58,38 @@ export const routes: Routes = [
 		canActivate: [AuthGuard]
 	},
 	{
-		path: 'game',
-		loadComponent: () => import('./pages/game/game.page').then(m => m.GamePage),
-		canActivate: [AuthGuard]
-	},
-	  {
-    path: 'quick-play',
-    loadComponent: () => import('./pages/quick-play/quick-play.page').then(m => m.QuickPlayPage),
-    canActivate: [AuthGuard]
-  },
-	{
 		path: 'profile',
 		loadComponent: () => import('./pages/profile/profile.page').then(m => m.ProfilePage),
 		canActivate: [AuthGuard]
 	},
 	{
+		path: 'play',
+		children: [
+			{
+				path: '',
+				loadComponent: () => import('./pages/play/play/play.page').then(m => m.PlayPage)
+			},
+			{
+				path: 'quick-match',
+				loadComponent: () => import('./pages/quick-play/quick-play.page').then(m => m.QuickPlayPage),
+				canActivate: [AuthGuard]
+			},
+			{
+				path: 'game/:id',
+				loadComponent: () => import('./pages/game/game.page').then(m => m.GamePage),
+				canActivate: [AuthGuard]
+			},
+			{
+				path: 'game/:id/:slug',
+				loadComponent: () => import('./pages/game/game.page').then(m => m.GamePage),
+				canActivate: [AuthGuard]
+			}
+		]
+	},
+	{
 		path: '**',
 		loadComponent: () => import('./pages/not-found/not-found.page').then(m => m.NotFoundPage),
 		pathMatch: 'full'
-	}
+	},
+
 ];
